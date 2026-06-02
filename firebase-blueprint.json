@@ -1,0 +1,199 @@
+{
+  "entities": {
+    "student": {
+      "title": "Student",
+      "description": "Student profile and registration details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier, matches auth uid or custom ID" },
+        "name": { "type": "string", "description": "Full name of the student" },
+        "gender": { "type": "string", "enum": ["Male", "Female", "Other"] },
+        "email": { "type": "string", "description": "Email address" },
+        "mobile": { "type": "string", "description": "Mobile number" },
+        "institution": { "type": "string", "description": "University or College" },
+        "department": { "type": "string", "description": "Academic department" },
+        "currentPosition": { "type": "string", "description": "Current position of user" },
+        "previousDegrees": { "type": "string", "description": "Previous academic accomplishments" },
+        "researchInterests": { "type": "string", "description": "Topics of interest" },
+        "courseExpectations": { "type": "string", "description": "What they hope to learn" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "email", "createdAt"]
+    },
+    "attendance": {
+      "title": "Attendance",
+      "description": "Attendance record for a class date",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique ID (typically date string YYYY-MM-DD)" },
+        "date": { "type": "string", "format": "date" },
+        "records": { "type": "object", "description": "Map of studentId to status: present, absent, late" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "date", "records", "createdAt"]
+    },
+    "assignment": {
+      "title": "Assignment",
+      "description": "Course assignments created by instructor",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "dueDate": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "title", "dueDate", "createdAt"]
+    },
+    "submission": {
+      "title": "Submission",
+      "description": "Assignment submission details alongside grading info",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "assignmentId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "fileName": { "type": "string" },
+        "fileType": { "type": "string" },
+        "fileContent": { "type": "string", "description": "Base64 string or attachment text contents" },
+        "submittedAt": { "type": "string" },
+        "grade": { "type": "number", "description": "Numeric grade out of 100" },
+        "comments": { "type": "string", "description": "Instructor feedback comments" },
+        "resubmitted": { "type": "boolean" }
+      },
+      "required": ["id", "assignmentId", "studentId", "studentName", "submittedAt"]
+    },
+    "material": {
+      "title": "Material",
+      "description": "Course material details inside repository",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "fileName": { "type": "string" },
+        "fileType": { "type": "string" },
+        "fileContent": { "type": "string", "description": "Base64 string or attachment text" },
+        "uploadedAt": { "type": "string" }
+      },
+      "required": ["id", "title", "fileName", "uploadedAt"]
+    },
+    "message": {
+      "title": "Message",
+      "description": "System or user-to-user messages",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "senderRole": { "type": "string" },
+        "recipientId": { "type": "string", "description": "Recipient studentId or 'all'" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "senderId", "senderRole", "recipientId", "content", "createdAt"]
+    },
+    "survey": {
+      "title": "Survey",
+      "description": "Beginning-of-course or End-of-course surveys",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["beginning", "end"] },
+        "title": { "type": "string" },
+        "questions": { "type": "array", "description": "Array of question objects (id, type: mcq/likert/open, label, options)" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "type", "title", "questions", "createdAt"]
+    },
+    "survey_response": {
+      "title": "SurveyResponse",
+      "description": "Student responses to survey questions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "surveyId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "answers": { "type": "object", "description": "Key-value pair map of question index/id to answered value" },
+        "submittedAt": { "type": "string" }
+      },
+      "required": ["id", "surveyId", "studentId", "answers", "submittedAt"]
+    },
+    "reflection": {
+      "title": "Reflection",
+      "description": "Post-class student journals with instructor review options",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "date": { "type": "string" },
+        "content": { "type": "string" },
+        "feedback": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "studentId", "studentName", "date", "content", "createdAt"]
+    },
+    "research_profile": {
+      "title": "ResearchProfile",
+      "description": "Detailed student research tracking",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Matches studentId" },
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "topic": { "type": "string" },
+        "interests": { "type": "string" },
+        "methodology": { "type": "string" },
+        "currentStage": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "studentId", "studentName", "topic", "interests", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/students/{studentId}": {
+      "schema": "student",
+      "description": "Stores individual student profiles"
+    },
+    "/attendance/{attendanceId}": {
+      "schema": "attendance",
+      "description": "Stores daily class attendance sheets"
+    },
+    "/assignments/{assignmentId}": {
+      "schema": "assignment",
+      "description": "Stores created course assignments"
+    },
+    "/submissions/{submissionId}": {
+      "schema": "submission",
+      "description": "Stores homework uploads and grades"
+    },
+    "/materials/{materialId}": {
+      "schema": "material",
+      "description": "Stores shared study resources and notes"
+    },
+    "/messages/{messageId}": {
+      "schema": "message",
+      "description": "Stores course inbox dialogs"
+    },
+    "/surveys/{surveyId}": {
+      "schema": "survey",
+      "description": "Stores beginning or end evaluations"
+    },
+    "/survey_responses/{responseId}": {
+      "schema": "survey_response",
+      "description": "Stores individual response cards for surveys"
+    },
+    "/reflections/{reflectionId}": {
+      "schema": "reflection",
+      "description": "Stores daily/weekly journals from students"
+    },
+    "/research_profiles/{profileId}": {
+      "schema": "research_profile",
+      "description": "Stores student academic research pursuits"
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "DodaZ- Course Companion Portal",
+  "description": "An offline-first personal web MVP course management system for university instructors.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

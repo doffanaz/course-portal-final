@@ -1,0 +1,205 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isInstructor() {
+      return isSignedIn() && 
+             request.auth.token.email == "zerihunfakana@gmail.com" && 
+             request.auth.token.email_verified == true;
+    }
+    
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+    
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Entity validation functions
+    function isValidStudent(data) {
+      return data.id is string &&
+             data.name is string && data.name.size() <= 100 &&
+             data.email is string && data.email.size() <= 100 &&
+             data.gender is string && (data.gender == "Male" || data.gender == "Female" || data.gender == "Other") &&
+             data.createdAt is string;
+    }
+    
+    function isValidAttendance(data) {
+      return data.id is string &&
+             data.date is string &&
+             data.records is map &&
+             data.createdAt is string;
+    }
+    
+    function isValidAssignment(data) {
+      return data.id is string &&
+             data.title is string && data.title.size() <= 150 &&
+             data.dueDate is string &&
+             data.createdAt is string;
+    }
+    
+    function isValidSubmission(data) {
+      return data.id is string &&
+             data.assignmentId is string &&
+             data.studentId is string &&
+             data.studentName is string &&
+             data.submittedAt is string;
+    }
+    
+    function isValidMaterial(data) {
+      return data.id is string &&
+             data.title is string && data.title.size() <= 150 &&
+             data.fileName is string && data.fileName.size() <= 200 &&
+             data.uploadedAt is string;
+    }
+    
+    function isValidMessage(data) {
+      return data.id is string &&
+             data.senderId is string &&
+             data.senderRole is string &&
+             data.recipientId is string &&
+             data.content is string && data.content.size() <= 5000 &&
+             data.createdAt is string;
+    }
+    
+    function isValidSurvey(data) {
+      return data.id is string &&
+             (data.type == "beginning" || data.type == "end") &&
+             data.title is string &&
+             data.questions is list &&
+             data.createdAt is string;
+    }
+    
+    function isValidSurveyResponse(data) {
+      return data.id is string &&
+             data.surveyId is string &&
+             data.studentId is string &&
+             data.studentName is string &&
+             data.answers is map &&
+             data.submittedAt is string;
+    }
+    
+    function isValidReflection(data) {
+      return data.id is string &&
+             data.studentId is string &&
+             data.studentName is string &&
+             data.date is string &&
+             data.content is string && data.content.size() <= 10000 &&
+             data.createdAt is string;
+    }
+    
+    function isValidResearchProfile(data) {
+      return data.id is string &&
+             data.studentId is string &&
+             data.studentName is string &&
+             data.topic is string && data.topic.size() <= 500 &&
+             data.interests is string && data.interests.size() <= 1000 &&
+             data.updatedAt is string;
+    }
+
+    // Rules for each endpoint
+
+    // --- Students ---
+    match /students/{studentId} {
+      allow get: if isInstructor() || isOwner(studentId);
+      allow list: if isInstructor() || (isSignedIn() && resource.data.id == request.auth.uid);
+      allow create: if isSignedIn() && isValidId(studentId) && isOwner(studentId) && isValidStudent(request.resource.data);
+      allow update: if isSignedIn() && isValidId(studentId) && isOwner(studentId) && isValidStudent(request.resource.data) &&
+                      request.resource.data.id == resource.data.id &&
+                      request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isInstructor();
+    }
+
+    // --- Attendance ---
+    match /attendance/{attendanceId} {
+      allow read: if isInstructor() || isSignedIn();
+      allow write: if isInstructor() && isValidId(attendanceId) && (request.method == "delete" || isValidAttendance(request.resource.data));
+    }
+
+    // --- Assignments ---
+    match /assignments/{assignmentId} {
+      allow read: if isSignedIn();
+      allow write: if isInstructor() && isValidId(assignmentId) && (request.method == "delete" || isValidAssignment(request.resource.data));
+    }
+
+    // --- Submissions ---
+    match /submissions/{submissionId} {
+      allow get: if isInstructor() || (isSignedIn() && resource.data.studentId == request.auth.uid);
+      allow list: if isInstructor() || (isSignedIn() && resource.data.studentId == request.auth.uid);
+      allow create: if isSignedIn() && isValidId(submissionId) && isOwner(request.resource.data.studentId) && isValidSubmission(request.resource.data) && !request.resource.data.keys().hasAny(['grade', 'comments']);
+      allow update: if (
+        // Action: Grade by Instructor
+        (isInstructor() && request.resource.data.studentId == resource.data.studentId && request.resource.data.assignmentId == resource.data.assignmentId && request.resource.data.submittedAt == resource.data.submittedAt && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['grade', 'comments'])) ||
+        // Action: Resubmission by Owner
+        (isOwner(resource.data.studentId) && request.resource.data.id == resource.data.id && request.resource.data.studentId == resource.data.studentId && request.resource.data.assignmentId == resource.data.assignmentId && isValidSubmission(request.resource.data) && !request.resource.data.keys().hasAny(['grade', 'comments']) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fileName', 'fileType', 'fileContent', 'submittedAt', 'resubmitted']))
+      );
+      allow delete: if isInstructor();
+    }
+
+    // --- Materials ---
+    match /materials/{materialId} {
+      allow read: if isSignedIn();
+      allow write: if isInstructor() && isValidId(materialId) && (request.method == "delete" || isValidMaterial(request.resource.data));
+    }
+
+    // --- Messages ---
+    match /messages/{messageId} {
+      allow get: if isInstructor() || (isSignedIn() && (resource.data.senderId == request.auth.uid || resource.data.recipientId == request.auth.uid || resource.data.recipientId == "all"));
+      allow list: if isInstructor() || (isSignedIn() && (resource.data.senderId == request.auth.uid || resource.data.recipientId == request.auth.uid || resource.data.recipientId == "all"));
+      allow create: if isSignedIn() && isValidId(messageId) && isValidMessage(request.resource.data) && (isInstructor() || isOwner(request.resource.data.senderId));
+      allow delete: if isInstructor() || (isSignedIn() && resource.data.senderId == request.auth.uid);
+    }
+
+    // --- Surveys ---
+    match /surveys/{surveyId} {
+      allow read: if isSignedIn();
+      allow write: if isInstructor() && isValidId(surveyId) && (request.method == "delete" || isValidSurvey(request.resource.data));
+    }
+
+    // --- Survey Responses ---
+    match /survey_responses/{responseId} {
+      allow get: if isInstructor() || (isSignedIn() && resource.data.studentId == request.auth.uid);
+      allow list: if isInstructor() || (isSignedIn() && resource.data.studentId == request.auth.uid);
+      allow create: if isSignedIn() && isValidId(responseId) && isOwner(request.resource.data.studentId) && isValidSurveyResponse(request.resource.data);
+      allow update: if isSignedIn() && isOwner(resource.data.studentId) && isValidSurveyResponse(request.resource.data) && request.resource.data.studentId == resource.data.studentId;
+      allow delete: if isInstructor();
+    }
+
+    // --- Reflections ---
+    match /reflections/{reflectionId} {
+      allow get: if isInstructor() || (isSignedIn() && resource.data.studentId == request.auth.uid);
+      allow list: if isInstructor() || (isSignedIn() && resource.data.studentId == request.auth.uid);
+      allow create: if isSignedIn() && isValidId(reflectionId) && isOwner(request.resource.data.studentId) && isValidReflection(request.resource.data) && !request.resource.data.keys().hasAny(['feedback']);
+      allow update: if (
+        // Instructor update feedback
+        (isInstructor() && request.resource.data.studentId == resource.data.studentId && request.resource.data.content == resource.data.content && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['feedback'])) ||
+        // Student modify reflection content
+        (isOwner(resource.data.studentId) && request.resource.data.studentId == resource.data.studentId && isValidReflection(request.resource.data) && !request.resource.data.keys().hasAny(['feedback']) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['content', 'date']))
+      );
+      allow delete: if isInstructor();
+    }
+
+    // --- Research Profiles ---
+    match /research_profiles/{profileId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(profileId) && isOwner(request.resource.data.studentId) && isValidResearchProfile(request.resource.data);
+      allow update: if (
+        (isOwner(resource.data.studentId) && request.resource.data.studentId == resource.data.studentId && isValidResearchProfile(request.resource.data) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['topic', 'interests', 'methodology', 'currentStage', 'updatedAt'])) ||
+        isInstructor()
+      );
+      allow delete: if isInstructor();
+    }
+  }
+}
