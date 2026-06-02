@@ -6,7 +6,7 @@
 import React, { useState } from "react";
 import { Student, ResearchProfile } from "../types";
 import { dbService } from "../lib/db";
-import { User, BookOpen, GraduationCap, Award, Save, RefreshCw, Camera, UserPlus, X } from "lucide-react";
+import { User, BookOpen, GraduationCap, Award, Save, RefreshCw, Camera, UserPlus, X, Download, Upload, Check } from "lucide-react";
 
 interface ProfileProps {
   currentStudent: Student;
@@ -41,6 +41,9 @@ export default function StudentProfileView({ currentStudent, onProfileUpdated, i
 
   // New Student Registry Form States
   const [isAddingStudent, setIsAddingStudent] = useState(false);
+  const [importType, setImportType] = useState<"manual" | "bulk">("manual");
+  const [bulkCSVText, setBulkCSVText] = useState("");
+  const [bulkDragging, setBulkDragging] = useState(false);
   const [newStudentForm, setNewStudentForm] = useState({
     name: "",
     gender: "Male" as "Male" | "Female" | "Other",
@@ -122,6 +125,293 @@ export default function StudentProfileView({ currentStudent, onProfileUpdated, i
     if (setSelectedStudentId) {
       setSelectedStudentId(studentId);
     }
+  };
+
+  const handleBulkCSVDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setBulkDragging(true);
+  };
+
+  const handleBulkCSVDragLeave = () => {
+    setBulkDragging(false);
+  };
+
+  const handleBulkCSVDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setBulkDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const text = reader.result as string;
+        setBulkCSVText(text);
+        triggerAlert(`Selected "${file.name}"! Scroll down to initiate registration.`);
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const handleBulkFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const text = reader.result as string;
+        setBulkCSVText(text);
+        triggerAlert(`Selected "${file.name}"! Scroll down to initiate registration.`);
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const handleBulkCSVParse = () => {
+    if (!bulkCSVText.trim()) {
+      triggerAlert("Error: Please provide some CSV content to import.");
+      return;
+    }
+
+    // Split rows safely
+    const rows = bulkCSVText.split(/\r?\n/);
+    if (rows.length === 0) {
+      triggerAlert("Error: No row blocks detected inside the CSV.");
+      return;
+    }
+
+    // Clean cell splits supporting quotes
+    const cleanRows = rows.map(r => {
+      const cells: string[] = [];
+      let inQuotes = false;
+      let currentCell = "";
+      
+      for (let i = 0; i < r.length; i++) {
+        const char = r[i];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          cells.push(currentCell.trim());
+          currentCell = "";
+        } else {
+          currentCell += char;
+        }
+      }
+      cells.push(currentCell.trim());
+      return cells;
+    }).filter(row => row.some(cell => cell !== ""));
+
+    if (cleanRows.length === 0) {
+      triggerAlert("Error: Empty document grid parsed.");
+      return;
+    }
+
+    // Header mappings
+    let hasHeader = false;
+    let headers = ["name", "email", "gender", "mobile", "institution", "department", "position", "degrees", "interests", "topic", "methodology"];
+    
+    const firstRowLower = cleanRows[0].map(h => h.toLowerCase());
+    const isHeaderMatched = firstRowLower.some(val => 
+      val.includes("name") || val.includes("email") || val.includes("gender") || val.includes("phone") || val.includes("mobile")
+    );
+
+    let dataRows = cleanRows;
+    if (isHeaderMatched) {
+      hasHeader = true;
+      headers = firstRowLower;
+      dataRows = cleanRows.slice(1);
+    }
+
+    if (dataRows.length === 0) {
+      triggerAlert("Error: No student rows found beneath the columns line.");
+      return;
+    }
+
+    const getColumnIdx = (keywords: string[]) => {
+      return headers.findIndex(h => keywords.some(k => h.includes(k)));
+    };
+
+    const nameIdx = getColumnIdx(["name", "full"]);
+    const emailIdx = getColumnIdx(["email", "mail"]);
+    const genderIdx = getColumnIdx(["gender", "sex"]);
+    const mobileIdx = getColumnIdx(["mobile", "phone", "cell", "tel", "contact"]);
+    const instIdx = getColumnIdx(["inst", "univ", "school", "campus", "academic institution"]);
+    const deptIdx = getColumnIdx(["dept", "department", "stream", "course"]);
+    const posIdx = getColumnIdx(["position", "rank", "level", "role"]);
+    const degIdx = getColumnIdx(["degree", "qualification", "prev"]);
+    const intIdx = getColumnIdx(["interest", "focus", "research interests"]);
+    const topicIdx = getColumnIdx(["topic", "thesis topic", "proposed topic", "research topic"]);
+    const methIdx = getColumnIdx(["meth", "methodology", "methodological"]);
+
+    let potentialImports = 0;
+    let potentialSkipped = 0;
+
+    dataRows.forEach(row => {
+      const name = hasHeader ? (nameIdx !== -1 && nameIdx < row.length ? row[nameIdx].trim() : "") : (row[0] ? row[0].trim() : "");
+      const email = hasHeader ? (emailIdx !== -1 && emailIdx < row.length ? row[emailIdx].trim() : "") : (row[3] ? row[3].trim() : "");
+      if (name && email) {
+        potentialImports++;
+      } else {
+        potentialSkipped++;
+      }
+    });
+
+    if (potentialImports === 0) {
+      triggerAlert("Error: No valid student records with name and email were found in this spreadsheet.");
+      return;
+    }
+
+    const confirmMsg = `Bulk Student Registration Confirmation:\n\n` +
+      `• Total Rows in Spreadsheet: ${dataRows.length}\n` +
+      `• Valid Students Parsed for Import: ${potentialImports}\n` +
+      `• Skipped Rows (missing name or email): ${potentialSkipped}\n\n` +
+      `Do you want to proceed with installing this batch of students into your active class registry?`;
+
+    if (!confirm(confirmMsg)) {
+      return;
+    }
+
+    let importCount = 0;
+    let skippedCount = 0;
+    let sampleStudent: Student | null = null;
+
+    dataRows.forEach((row, rowIndex) => {
+      const getVal = (idx: number, fallback: string = "") => {
+        if (idx !== -1 && idx < row.length) {
+          let val = row[idx];
+          if (val.startsWith('"') && val.endsWith('"')) {
+            val = val.slice(1, -1);
+          }
+          return val.trim();
+        }
+        return fallback;
+      };
+
+      // Determine fields
+      const name = hasHeader ? getVal(nameIdx) : getVal(0);
+      const email = hasHeader ? getVal(emailIdx) : getVal(3);
+
+      if (!name || !email) {
+        skippedCount++;
+        return;
+      }
+
+      const genderRaw = hasHeader ? getVal(genderIdx, "Male") : getVal(2, "Male");
+      const gender: "Male" | "Female" | "Other" = (genderRaw.toLowerCase().startsWith("f")) 
+        ? "Female" 
+        : (genderRaw.toLowerCase().startsWith("m")) 
+          ? "Male" 
+          : "Other";
+
+      const studentId = `stud_custom_bulk_${Date.now()}_${rowIndex}`;
+      
+      const newStudent: Student = {
+        id: studentId,
+        name,
+        gender,
+        email,
+        mobile: hasHeader ? getVal(mobileIdx) : getVal(4),
+        institution: (hasHeader ? getVal(instIdx) : getVal(5)) || "Ethiopian Police University",
+        department: (hasHeader ? getVal(deptIdx) : getVal(6)) || "Crime Prevention and Criminology",
+        currentPosition: (hasHeader ? getVal(posIdx) : getVal(7)) || "Year 1 Graduate",
+        previousDegrees: hasHeader ? getVal(degIdx) : getVal(8),
+        researchInterests: hasHeader ? getVal(intIdx) : getVal(9),
+        courseExpectations: "Bulk imported from student registry spreadsheet.",
+        createdAt: new Date().toISOString()
+      };
+
+      dbService.addStudent(newStudent);
+
+      // Add thesis milestones logs
+      const newResearch: ResearchProfile = {
+        id: studentId,
+        studentId,
+        studentName: name,
+        topic: (hasHeader ? getVal(topicIdx) : getVal(10)) || "Topic submitted and approved",
+        interests: (hasHeader ? getVal(intIdx) : getVal(9)) || "Qualitative methodology interests",
+        methodology: (hasHeader ? getVal(methIdx) : getVal(11)) || "Inductive research approach",
+        currentStage: "Topic submitted and approved",
+        updatedAt: new Date().toISOString()
+      };
+      dbService.saveResearchProfile(newResearch);
+
+      importCount++;
+      if (!sampleStudent) {
+        sampleStudent = newStudent;
+      }
+    });
+
+    if (importCount > 0) {
+      setBulkCSVText("");
+      setIsAddingStudent(false);
+      triggerAlert(`Successfully bulk-imported ${importCount} students! Skipped ${skippedCount} items.`);
+      
+      if (sampleStudent && onProfileUpdated) {
+        onProfileUpdated(sampleStudent);
+        if (setSelectedStudentId) {
+          setSelectedStudentId(sampleStudent.id);
+        }
+      }
+    } else {
+      triggerAlert("Error: Failed to register any student profile. Please inspect email/name headers.");
+    }
+  };
+
+  const handleExportStudentsCSV = () => {
+    const list = dbService.getStudents();
+    if (list.length === 0) {
+      triggerAlert("Error: There are currently no students registered to export.");
+      return;
+    }
+
+    const headers = [
+      "Student ID",
+      "Full Name",
+      "Gender",
+      "Email Address",
+      "Mobile Phone",
+      "Institution",
+      "Department",
+      "Current Position",
+      "Previous Degrees",
+      "Research Interests",
+      "Course Expectations",
+      "Date Registered"
+    ];
+
+    const escapeCSV = (val: string) => {
+      if (!val) return '""';
+      const escaped = val.replace(/"/g, '""');
+      return `"${escaped}"`;
+    };
+
+    const csvRows = [
+      headers.join(","),
+      ...list.map(s => [
+        escapeCSV(s.id),
+        escapeCSV(s.name),
+        escapeCSV(s.gender),
+        escapeCSV(s.email),
+        escapeCSV(s.mobile || ""),
+        escapeCSV(s.institution || ""),
+        escapeCSV(s.department || ""),
+        escapeCSV(s.currentPosition || ""),
+        escapeCSV(s.previousDegrees || ""),
+        escapeCSV(s.researchInterests || ""),
+        escapeCSV(s.courseExpectations || ""),
+        escapeCSV(s.createdAt || "")
+      ].join(","))
+    ];
+
+    const csvContent = csvRows.join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `EPU_Student_Academic_Registry_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    triggerAlert("Dataset successfully compiled! Initiating download for Student Academic Registry CSV.");
   };
 
   React.useEffect(() => {
@@ -219,24 +509,38 @@ export default function StudentProfileView({ currentStudent, onProfileUpdated, i
             </div>
           </div>
           
-          <button
-            id="btn-trigger-add-student"
-            type="button"
-            onClick={() => setIsAddingStudent(!isAddingStudent)}
-            className="inline-flex items-center space-x-2 text-xs bg-indigo-650 hover:bg-indigo-700 text-white font-extrabold uppercase tracking-wider py-2.5 px-4 rounded-lg shadow-sm transition shrink-0 cursor-pointer"
-          >
-            {isAddingStudent ? (
-              <>
-                <X className="h-4 w-4" />
-                <span>Cancel Registration</span>
-              </>
-            ) : (
-              <>
-                <UserPlus className="h-4 w-4" />
-                <span>Register New Student</span>
-              </>
-            )}
-          </button>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              id="btn-export-student-registry"
+              type="button"
+              title="Export complete student profiles containing contact details and academic standings to CSV"
+              onClick={handleExportStudentsCSV}
+              className="inline-flex items-center space-x-2 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold uppercase tracking-wider py-2.5 px-4 rounded-lg shadow-sm transition cursor-pointer"
+            >
+              <Download className="h-4 w-4" />
+              <span>Export Student List (CSV)</span>
+            </button>
+
+            <button
+              id="btn-trigger-add-student"
+              type="button"
+              title="Open the enrollment portal to register a new student manually or perform bulk CSV spreadsheet imports"
+              onClick={() => setIsAddingStudent(!isAddingStudent)}
+              className="inline-flex items-center space-x-2 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold uppercase tracking-wider py-2.5 px-4 rounded-lg shadow-sm transition shrink-0 cursor-pointer"
+            >
+              {isAddingStudent ? (
+                <>
+                  <X className="h-4 w-4" />
+                  <span>Cancel Registration</span>
+                </>
+              ) : (
+                <>
+                  <UserPlus className="h-4 w-4" />
+                  <span>Register New Student</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       )}
 
@@ -261,8 +565,37 @@ export default function StudentProfileView({ currentStudent, onProfileUpdated, i
             </button>
           </div>
 
-          <form onSubmit={handleAddNewStudent} className="space-y-5">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Tab Selector */}
+          <div className="flex border-b border-slate-200 mb-6">
+            <button
+              type="button"
+              id="tab-import-manual"
+              onClick={() => setImportType("manual")}
+              className={`py-2.5 px-4 text-xs font-bold uppercase tracking-wider border-b-2 transition ${
+                importType === "manual"
+                  ? "border-indigo-600 text-indigo-700 font-extrabold"
+                  : "border-transparent text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              Manual Form Entry
+            </button>
+            <button
+              type="button"
+              id="tab-import-bulk"
+              onClick={() => setImportType("bulk")}
+              className={`py-2.5 px-4 text-xs font-bold uppercase tracking-wider border-b-2 transition ${
+                importType === "bulk"
+                  ? "border-indigo-600 text-indigo-700 font-extrabold"
+                  : "border-transparent text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              Bulk Spreadsheet Importer (CSV)
+            </button>
+          </div>
+
+          {importType === "manual" ? (
+            <form onSubmit={handleAddNewStudent} className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               
               {/* Column 1 */}
               <div className="space-y-4">
@@ -425,6 +758,90 @@ export default function StudentProfileView({ currentStudent, onProfileUpdated, i
               </div>
             </div>
           </form>
+          ) : (
+            <div className="space-y-5 animate-fade-in">
+              <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl text-xs space-y-3">
+                <h5 className="font-bold text-slate-800 uppercase tracking-wide">Excel / CSV Spreadsheet Schema Guide:</h5>
+                <p className="text-slate-600 leading-relaxed">
+                  Your files inside spreadsheet programs (Microsoft Excel, Numbers, Google Sheets) should have a first-row column headers line.
+                  The system will automatically auto-detect the headers format!
+                </p>
+                
+                <div className="bg-slate-900 text-slate-100 p-3 rounded font-mono text-[10px] space-y-1">
+                  <p className="text-slate-400 font-bold"># Recommended column headers configuration:</p>
+                  <p className="text-emerald-400 font-bold select-all">Name, Email, Gender, Mobile, Institution, Department, Position, Degrees, Interests, Topic, Methodology</p>
+                  <p className="text-slate-400 font-bold mt-2"># Dummy Sample Rows:</p>
+                  <p>Abebe Kebede, abebe@EP-univ.edu, Male, +251911223344, Ethiopian Police University, Crime Prevention, Year 1, BSc Police, Crime logs, Crime analysis, Qualitative methods</p>
+                  <p>Chaltu Demeke, chaltu@EP-univ.edu, Female, +251922334455, Ethiopian Police University, Crime Prevention, Year 1, LLB Law, Cyber Crime mitigation, Security analysis, BigData mining</p>
+                </div>
+              </div>
+
+              {/* Drag and Drop Box */}
+              <div
+                onDragOver={handleBulkCSVDragOver}
+                onDragLeave={handleBulkCSVDragLeave}
+                onDrop={handleBulkCSVDrop}
+                className={`border-2 border-dashed rounded-xl p-8 text-center transition ${
+                  bulkDragging ? "bg-indigo-50 border-indigo-600" : "border-slate-300 hover:bg-slate-50"
+                }`}
+              >
+                <input
+                  id="bulk-csv-file-input"
+                  type="file"
+                  accept=".csv,.txt"
+                  className="hidden"
+                  onChange={handleBulkFileChange}
+                />
+                <label htmlFor="bulk-csv-file-input" className="cursor-pointer space-y-3 block">
+                  <Upload className="h-10 w-10 text-slate-400 mx-auto" />
+                  <div className="text-xs text-slate-600">
+                    <span className="font-bold underline text-indigo-600">Click to select CSV file</span> or drag-and-drop here
+                  </div>
+                  <p className="text-[10px] text-slate-400 font-mono">Accepts native UTF-8 CSV / plain TXT spreadsheets</p>
+                </label>
+              </div>
+
+              {/* Text Input Box */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Raw CSV Spreadsheet Paste Block
+                </label>
+                <textarea
+                  id="textarea-bulk-csv"
+                  rows={8}
+                  placeholder={`Paste raw Microsoft Excel / Google Sheets rows here directly (comma or tab separated)...&#13;&#10;Name,Email,Gender,Mobile&#13;&#10;Abebe Kebede,abebe@un.edu,Male,+251900000001`}
+                  value={bulkCSVText}
+                  onChange={e => setBulkCSVText(e.target.value)}
+                  className="w-full text-xs font-mono border border-slate-200 rounded-lg p-3 bg-white text-slate-900 focus:outline-none focus:border-indigo-600"
+                />
+              </div>
+
+              <div className="border-t border-slate-100 pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-[11px] text-slate-500">
+                <span className="font-semibold text-amber-700">
+                  * Bulk uploads are handled instantly and indexed in your local session cache.
+                </span>
+                <div className="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingStudent(false)}
+                    className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-md font-bold text-xs uppercase"
+                    id="btn-cancel-bulk-student"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    id="btn-execute-bulk-import"
+                    type="button"
+                    onClick={handleBulkCSVParse}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-md font-bold text-xs uppercase flex items-center space-x-1.5 shadow-sm cursor-pointer"
+                  >
+                    <Check className="h-4 w-4" />
+                    <span>Initiate Bulk Register</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
         </div>
       )}

@@ -8,7 +8,7 @@ import { Student } from "./types";
 import { dbService } from "./lib/db";
 import { 
   User, BookOpen, Calendar, FileText, Mail, BarChart2, Book, Award, 
-  Wifi, WifiOff, RefreshCw, Layers 
+  Wifi, WifiOff, RefreshCw, Layers, Sun, Moon, AlertTriangle, Info 
 } from "lucide-react";
 
 // Import modular layouts
@@ -73,6 +73,78 @@ export default function App() {
     "profile" | "attendance" | "assignments" | "materials" | "messaging" | "surveys" | "reflections" | "reports" | "manual"
   >("profile");
 
+  // --- Dark Mode State ---
+  const [darkMode, setDarkMode] = useState<boolean>(() => {
+    return localStorage.getItem("cc_dark_mode") === "true";
+  });
+
+  // --- Collapsible Notes Sidebar State ---
+  const [isNotesOpen, setIsNotesOpen] = useState<boolean>(() => {
+    return localStorage.getItem("cc_notes_sidebar_open") === "true";
+  });
+
+  const [activeNoteType, setActiveNoteType] = useState<"general" | "student" | "personal">("general");
+  const [noteContent, setNoteContent] = useState("");
+  const [saveStatus, setSaveStatus] = useState<"Saved" | "Saving..." | "">("");
+
+  // Track root class list for dark mode support
+  useEffect(() => {
+    localStorage.setItem("cc_dark_mode", String(darkMode));
+    const root = document.getElementById("app-root");
+    if (root) {
+      if (darkMode) {
+        root.classList.add("dark");
+      } else {
+        root.classList.remove("dark");
+      }
+    }
+  }, [darkMode]);
+
+  // Track active note open state save trigger
+  useEffect(() => {
+    localStorage.setItem("cc_notes_sidebar_open", String(isNotesOpen));
+  }, [isNotesOpen]);
+
+  // Load active note content based on note category
+  useEffect(() => {
+    if (!session) return;
+    const list = dbService.getWorkspaceNotes();
+    const noteId = activeNoteType === "student" 
+      ? `note_st_${selectedStudentId}`
+      : activeNoteType === "personal"
+        ? `note_pers_${session.role}_${session.studentId || "instructor"}`
+        : `note_general_syllabus`;
+    
+    const found = list.find(n => n.id === noteId);
+    setNoteContent(found ? found.content : "");
+  }, [activeNoteType, selectedStudentId, session]);
+
+  const handleNoteChange = (content: string) => {
+    if (!session) return;
+    setNoteContent(content);
+    setSaveStatus("Saving...");
+    
+    const noteId = activeNoteType === "student" 
+      ? `note_st_${selectedStudentId}`
+      : activeNoteType === "personal"
+        ? `note_pers_${session.role}_${session.studentId || "instructor"}`
+        : `note_general_syllabus`;
+
+    const noteItem = {
+      id: noteId,
+      role: session.role,
+      studentId: activeNoteType === "student" ? selectedStudentId : undefined,
+      content: content,
+      updatedAt: new Date().toISOString()
+    };
+    
+    dbService.saveWorkspaceNote(noteItem);
+    
+    setTimeout(() => {
+      setSaveStatus("Saved");
+    }, 400);
+  };
+
   // Keep student context locked to logged-in user if state tells us so
   useEffect(() => {
     if (session) {
@@ -129,6 +201,15 @@ export default function App() {
 
   const currentStudent = students.find(s => s.id === selectedStudentId) || students[0] || DEFAULT_FALLBACK_STUDENT;
 
+  // --- Compile upcoming due assignments reminders ---
+  const activeAssignments = dbService.getAssignments();
+  const pendingSoon = activeAssignments.filter(a => {
+    const dueTime = new Date(a.dueDate).getTime();
+    const nowTime = Date.now();
+    const diff = dueTime - nowTime;
+    return diff > 0 && diff <= 5 * 24 * 60 * 60 * 1000; // due within 5 days
+  });
+
   const handleProfileUpdated = (updatedStudent: Student) => {
     // Sync memory records
     setStudents(dbService.getStudents());
@@ -164,7 +245,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-800" id="app-root">
+    <div className={`min-h-screen ${darkMode ? "dark bg-slate-950 text-slate-100" : "bg-slate-50 text-slate-800"} flex flex-col font-sans transition-colors duration-200`} id="app-root">
 
       {/* Top Banner Alert exactly matching user's screenshot */}
       <div className="bg-[#055a64] text-white px-4 py-3 flex flex-col md:flex-row items-center justify-between gap-4 shrink-0 shadow-md no-print" id="banner-pwa-tab-redirect">
@@ -208,13 +289,13 @@ export default function App() {
       </div>
       
       {/* Top Banner Administration & Sync outbox indicators */}
-      <header className="bg-white text-slate-900 border-b border-slate-200 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 no-print shadow-sm">
+      <header className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 no-print shadow-sm">
         <div className="flex items-center space-x-3">
           <div className="w-8 h-8 bg-indigo-650 rounded flex items-center justify-center font-black text-white shadow-sm shrink-0">
             ZD
           </div>
           <div>
-            <h1 className="text-md font-extrabold tracking-tight text-slate-900 uppercase flex items-center space-x-2">
+            <h1 className="text-md font-extrabold tracking-tight text-slate-900 dark:text-white uppercase flex items-center space-x-2">
               <span>DodaZ- Portal</span>
               <select
                 id="university-header-selector"
@@ -224,21 +305,45 @@ export default function App() {
                   setActiveUniId(val);
                   localStorage.setItem("active_university_id", val);
                 }}
-                className="text-[9px] bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-mono tracking-wider font-bold px-2 py-0.5 rounded-md border border-indigo-200 outline-none cursor-pointer"
+                className="text-[9px] bg-indigo-50 dark:bg-slate-800 hover:bg-indigo-100 dark:hover:bg-slate-700 text-indigo-700 dark:text-indigo-300 font-mono tracking-wider font-bold px-2 py-0.5 rounded-md border border-indigo-200 dark:border-slate-700 outline-none cursor-pointer"
               >
                 {UNIVERSITIES.map(u => (
                   <option key={u.id} value={u.id}>{u.acronym} PWA</option>
                 ))}
               </select>
             </h1>
-            <p className="text-[10px] text-slate-500 font-semibold tracking-wide">
-              Selected Campus: <span className="text-slate-700">{activeUniversity.name}</span>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold tracking-wide">
+              Selected Campus: <span className="text-slate-750 dark:text-slate-200">{activeUniversity.name}</span>
             </p>
           </div>
         </div>
 
         {/* Sync panel indicators & manual controls */}
         <div className="flex items-center space-x-4">
+          
+          {/* Theme & Workspace Toggles */}
+          <div className="flex items-center gap-1.5 border-r border-slate-200 dark:border-slate-800 pr-3 mr-1">
+            <button
+              id="btn-toggle-dark-mode"
+              type="button"
+              onClick={() => setDarkMode(!darkMode)}
+              className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer"
+              title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            >
+              {darkMode ? <Sun className="h-4 w-4 text-amber-500" /> : <Moon className="h-4 w-4" />}
+            </button>
+            <button
+              id="btn-toggle-notes-sidebar"
+              type="button"
+              onClick={() => setIsNotesOpen(!isNotesOpen)}
+              className={`p-2 rounded-lg transition cursor-pointer flex items-center gap-1 text-xs font-bold ${isNotesOpen ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300" : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"}`}
+              title="Toggle Workspace Notes Sidebar"
+            >
+              <FileText className="h-4 w-4" />
+              <span className="hidden sm:inline">Notes</span>
+            </button>
+          </div>
+
           <div className="flex items-center space-x-2 text-xs font-mono">
             {online ? (
               <span className="flex items-center space-x-1.5 text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 font-bold">
@@ -363,6 +468,11 @@ export default function App() {
                 >
                   <IconComp className={`h-4.5 w-4.5 shrink-0 ${isActive ? "text-indigo-300" : ""}`} />
                   <span>{item.label}</span>
+                  {item.id === "assignments" && pendingSoon.length > 0 && (
+                    <span className="ml-auto bg-amber-500 text-slate-950 font-sans font-black text-[9px] px-1.5 py-0.5 rounded-full shrink-0 select-none animate-pulse">
+                      {pendingSoon.length} SOON
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -407,8 +517,40 @@ export default function App() {
         </aside>
 
         {/* View Component Wrapper */}
-        <main className="lg:col-span-9 space-y-6">
-          <div className="bg-white border border-slate-200 rounded-xl p-8 min-h-[500px] shadow-sm relative print-clean">
+        <main className={`${isNotesOpen ? "lg:col-span-6" : "lg:col-span-9"} space-y-6 transition-all duration-155`}>
+          
+          {/* Dynamic Assignment Reminders Alert banner */}
+          {pendingSoon.length > 0 && (
+            <div className="bg-amber-500/10 dark:bg-amber-500/5 border border-amber-500/30 text-amber-900 dark:text-amber-250 p-4 rounded-xl flex items-start gap-3 shadow-3xs animate-fade-in" id="workspace-alerts-banner">
+              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <div className="flex-1 text-xs">
+                <p className="font-bold uppercase tracking-wider text-amber-950 dark:text-amber-300 font-sans">⏰ Assignment Reminders Alert ({pendingSoon.length} Pending Soon)</p>
+                <div className="mt-1.5 space-y-1 font-medium font-sans">
+                  {pendingSoon.map(a => {
+                    const daysLeft = Math.ceil((new Date(a.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                    return (
+                      <div key={a.id} className="flex justify-between items-center bg-white/40 dark:bg-slate-900/40 px-3 py-1.5 rounded-md border border-amber-200 dark:border-amber-950/20 text-[11px]">
+                        <span>
+                          <strong>{a.title}</strong> is due in <span className="text-amber-700 dark:text-amber-300 font-extrabold">{daysLeft} days</span> (limit: {new Date(a.dueDate).toLocaleDateString()})
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveTab("assignments");
+                          }}
+                          className="bg-amber-600 hover:bg-amber-700 text-white font-extrabold px-2 py-1 rounded text-[10px] uppercase tracking-wide cursor-pointer transition shadow-3xs"
+                        >
+                          Open Roster
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-8 min-h-[500px] shadow-sm relative print-clean text-slate-850 dark:text-slate-100">
             
             {activeTab === "profile" && (
               <StudentProfileView 
@@ -475,6 +617,83 @@ export default function App() {
 
           </div>
         </main>
+
+        {/* Collapsible Notes Side Drawer */}
+        {isNotesOpen && (
+          <aside className="lg:col-span-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 space-y-4 shadow-sm h-fit no-print animate-fade-in text-slate-700 dark:text-slate-350" id="workspace-notes-drawer">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center space-x-2">
+                <BookOpen className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider font-sans">Workspace Notebook</h3>
+              </div>
+              <button 
+                onClick={() => setIsNotesOpen(false)} 
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold text-xs"
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            {/* Selection profile tabs for notes */}
+            <div className="flex gap-1 bg-slate-100 dark:bg-slate-950 p-1 rounded-lg text-[10px] font-sans">
+              <button
+                type="button"
+                onClick={() => setActiveNoteType("general")}
+                className={`flex-1 text-center py-1.5 rounded-md font-bold transition ${activeNoteType === "general" ? "bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-300 shadow-3xs" : "text-slate-500 hover:text-slate-400"}`}
+              >
+                Syllabus
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveNoteType("personal")}
+                className={`flex-1 text-center py-1.5 rounded-md font-bold transition ${activeNoteType === "personal" ? "bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-300 shadow-3xs" : "text-slate-500 hover:text-slate-400"}`}
+              >
+                Scratchpad
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveNoteType("student")}
+                className={`flex-1 text-center py-1.5 rounded-md font-bold transition ${activeNoteType === "student" ? "bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-300 shadow-3xs" : "text-slate-500 hover:text-slate-400"}`}
+              >
+                {session.role === "instructor" ? "Student Log" : "Draft Notes"}
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-[10px] text-slate-450 font-mono">
+                <span className="truncate max-w-[150px]">
+                  {activeNoteType === "general" && "📋 Syllabus Checklist"}
+                  {activeNoteType === "personal" && `✍️ Private Journal`}
+                  {activeNoteType === "student" && (session.role === "instructor" ? `🎓 Log: ${currentStudent.name}` : `🔍 Thesis Draft Notes`)}
+                </span>
+                {saveStatus && (
+                  <span className={`px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wide font-sans shrink-0 ${saveStatus === "Saved" ? "text-emerald-650 bg-emerald-50 dark:bg-emerald-950/40" : "text-amber-600 bg-amber-50 dark:bg-amber-950/40"}`}>
+                    {saveStatus}
+                  </span>
+                )}
+              </div>
+
+              <textarea
+                value={noteContent}
+                onChange={e => handleNoteChange(e.target.value)}
+                placeholder={
+                  activeNoteType === "general" 
+                    ? "Enter global details, exam dates, syllabus notes here..." 
+                    : activeNoteType === "personal" 
+                      ? "Jot down scratch ideas or reminders for yourself here..." 
+                      : session.role === "instructor" 
+                        ? `Private evaluation notes regarding ${currentStudent.name}...` 
+                        : "Private thesis checklist & resources notepad..."
+                }
+                rows={12}
+                className="w-full text-xs font-mono p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl focus:outline-none focus:border-indigo-650 focus:ring-1 focus:ring-indigo-650 text-slate-800 dark:text-slate-100 resize-none shadow-3xs"
+              />
+              <p className="text-[9px] text-slate-400 dark:text-slate-500 leading-normal font-sans text-center">
+                ✨ Offline autosave enabled. Data is preserved in the browser sandbox cache.
+              </p>
+            </div>
+          </aside>
+        )}
 
       </div>
 

@@ -4,9 +4,12 @@
  */
 
 import React, { useState } from "react";
-import { Student, Assignment, Submission } from "../types";
+import { Student, Assignment, Submission, PeerFeedback } from "../types";
 import { dbService } from "../lib/db";
-import { Upload, BookOpen, Clock, FileText, CheckCircle, Save, Check, Link, ChevronRight } from "lucide-react";
+import { 
+  Upload, BookOpen, Clock, FileText, CheckCircle, Save, Check, Link, ChevronRight, Download,
+  BarChart2, MessageSquare, Award, ThumbsUp
+} from "lucide-react";
 
 interface AssignmentsProps {
   isInstructor: boolean;
@@ -43,6 +46,59 @@ export default function AssignmentsView({ isInstructor, currentStudent }: Assign
 
   const activeAssignment = assignments.find(a => a.id === selectedAssignmentId);
 
+  // --- Auto-Grade KPI calculations ---
+  const assignmentSubmissions = activeAssignment 
+    ? submissions.filter(s => s.assignmentId === activeAssignment.id)
+    : [];
+  
+  const gradedSubmissions = assignmentSubmissions.filter(s => s.grade !== undefined);
+  const gradesList = gradedSubmissions.map(s => s.grade as number);
+  const averageGrade = gradesList.length > 0 
+    ? (gradesList.reduce((acc, curr) => acc + curr, 0) / gradesList.length).toFixed(1)
+    : "N/A";
+  const maxGrade = gradesList.length > 0 ? Math.max(...gradesList) : "N/A";
+  const passCount = gradesList.filter(g => g >= 50).length;
+  const passRate = gradedSubmissions.length > 0 
+    ? ((passCount / gradedSubmissions.length) * 100).toFixed(0)
+    : "N/A";
+
+  const peerFeedbacksForActive = activeAssignment
+    ? dbService.getPeerFeedbacks().filter(f => f.assignmentId === activeAssignment.id)
+    : [];
+
+  const otherSubmissions = activeAssignment
+    ? submissions.filter(s => s.assignmentId === activeAssignment.id && s.studentId !== currentStudent.id)
+    : [];
+
+  // Recs Insight
+  let insightText = "Not enough graded submissions to formulate curriculum insights.";
+  if (gradedSubmissions.length >= 2) {
+    const avg = parseFloat(averageGrade);
+    if (avg >= 80) {
+      insightText = "🌟 Outstanding! The average score is excellent, indicating high curriculum engagement and comprehensive thesis research draft maturity.";
+    } else if (avg >= 65) {
+      insightText = "📈 Healthy. Average scores align with standard academic milestones. Suggest focusing next peer-review audits on structural methodology chapters.";
+    } else {
+      insightText = "⚠️ Attention. The class benchmark is currently below standard. Consider planning a supplementary lecture covering academic writing and research integrity.";
+    }
+  }
+
+  const handleAddPeerFeedback = (targetSubId: string, reviewerId: string, reviewerName: string, comments: string) => {
+    if (!activeAssignment) return;
+    const feedbackItem: PeerFeedback = {
+      id: `pf_${Date.now()}`,
+      submissionId: targetSubId,
+      assignmentId: activeAssignment.id,
+      reviewerStudentId: reviewerId,
+      reviewerStudentName: reviewerName,
+      comments: comments,
+      createdAt: new Date().toISOString()
+    };
+    dbService.addPeerFeedback(feedbackItem);
+    setSuccessMsg("Successfully submitted classmates academic double-blind peer feedback!");
+    setTimeout(() => setSuccessMsg(null), 3050);
+  };
+
   // File drag & upload handlers
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -67,7 +123,7 @@ export default function AssignmentsView({ isInstructor, currentStudent }: Assign
       studentName: currentStudent.name,
       fileName: nameList || "homework_submission.pdf",
       fileType: typeSuffix || "pdf",
-      fileContent: btoa(rawContent || "student submitted homework document"),
+      fileContent: rawContent.startsWith("data:") ? rawContent : btoa(unescape(encodeURIComponent(rawContent || "student submitted homework document"))),
       submittedAt: new Date().toISOString(),
       resubmitted: !!existingSub
     };
@@ -86,9 +142,14 @@ export default function AssignmentsView({ isInstructor, currentStudent }: Assign
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const file = e.dataTransfer.files[0];
       setFileName(file.name);
-      const suffix = file.name.split(".").pop() || "pdf";
+      const suffix = (file.name.split(".").pop() || "pdf").toLowerCase();
       setFileType(suffix);
-      setSubmissionText(`Dropped file: ${file.name} - ${file.size} bytes`);
+      
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setSubmissionText(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -96,9 +157,14 @@ export default function AssignmentsView({ isInstructor, currentStudent }: Assign
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
       setFileName(file.name);
-      const suffix = file.name.split(".").pop() || "pdf";
+      const suffix = (file.name.split(".").pop() || "pdf").toLowerCase();
       setFileType(suffix);
-      setSubmissionText(`Selected file: ${file.name} - ${file.size} bytes`);
+      
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setSubmissionText(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -257,7 +323,7 @@ export default function AssignmentsView({ isInstructor, currentStudent }: Assign
                           <span>Due: {new Date(a.dueDate).toLocaleDateString()}</span>
                         </div>
                       </div>
-                      <span className="text-[10px] font-mono bg-slate-105 text-slate-650 px-1.5 py-0.5 rounded-md shrink-0">
+                      <span className="text-[10px] font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-md shrink-0">
                         {isInstructor ? `${subCount}/${students.length} filed` : submissions.some(sub => sub.assignmentId === a.id && sub.studentId === currentStudent.id) ? "Filed" : "Pending"}
                       </span>
                     </button>
@@ -302,9 +368,70 @@ export default function AssignmentsView({ isInstructor, currentStudent }: Assign
                           <button type="button" onClick={() => setActiveGradingSubId(null)} className="text-xs font-bold text-slate-500 hover:text-slate-900 font-mono">✕ Close</button>
                         </div>
 
-                        <div className="text-xs font-mono text-slate-650 bg-white border border-slate-200 p-3 rounded-md max-h-40 overflow-y-auto whitespace-pre-line">
-                          <strong className="text-slate-900 font-sans block mb-1">Submitted Attachments content:</strong>
-                          {atob(activeSub.fileContent)}
+                        <div className="text-xs font-mono text-slate-700 bg-white border border-slate-200 p-3 rounded-md max-h-56 overflow-y-auto whitespace-pre-line">
+                          <strong className="text-slate-900 font-sans block mb-1">Submitted Attachment Info & Answers:</strong>
+                          <div className="mb-2 p-2 bg-indigo-50 border border-indigo-150 rounded text-[11px] font-sans text-indigo-900 flex items-center justify-between">
+                            <div>
+                              <p className="font-bold font-mono text-slate-900">Filename: {activeSub.fileName}</p>
+                              <p className="text-[10px] text-indigo-700">Type: {activeSub.fileType.toUpperCase()}</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                try {
+                                  let url = "";
+                                  let blob: Blob;
+                                  if (activeSub.fileContent.startsWith("data:")) {
+                                    const parts = activeSub.fileContent.split(",");
+                                    const mime = parts[0].match(/:(.*?);/)?.[1] || "application/octet-stream";
+                                    const rawBinary = atob(parts[1]);
+                                    const rawLen = rawBinary.length;
+                                    const u8arr = new Uint8Array(rawLen);
+                                    for (let i = 0; i < rawLen; i++) {
+                                      u8arr[i] = rawBinary.charCodeAt(i);
+                                    }
+                                    blob = new Blob([u8arr], { type: mime });
+                                  } else {
+                                    const decoded = atob(activeSub.fileContent);
+                                    const rawLen = decoded.length;
+                                    const u8arr = new Uint8Array(rawLen);
+                                    for (let i = 0; i < rawLen; i++) {
+                                      u8arr[i] = decoded.charCodeAt(i);
+                                    }
+                                    blob = new Blob([u8arr], { type: "application/octet-stream" });
+                                  }
+                                  url = URL.createObjectURL(blob);
+                                  const link = document.createElement("a");
+                                  link.href = url;
+                                  link.download = activeSub.fileName;
+                                  document.body.appendChild(link);
+                                  link.click();
+                                  document.body.removeChild(link);
+                                  URL.revokeObjectURL(url);
+                                } catch (e) {
+                                  alert("Error exporting/generating attachment document stream: " + e);
+                                }
+                              }}
+                              className="inline-flex items-center space-x-1 px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-bold text-[10px] transition cursor-pointer font-sans"
+                            >
+                              <Download className="h-3 w-3" />
+                              <span>Download Document</span>
+                            </button>
+                          </div>
+                          
+                          <div className="border-t border-slate-100 pt-2 text-[11px] whitespace-pre-wrap">
+                            <span className="font-bold font-sans text-slate-800 block mb-1">Written Text / Study Supplementary:</span>
+                            {(() => {
+                              try {
+                                if (activeSub.fileContent.startsWith("data:")) {
+                                  return "[Uploaded course report file binary. Use downloaded file to retrieve original contents.]";
+                                }
+                                return atob(activeSub.fileContent);
+                              } catch {
+                                return activeSub.fileContent || "No supplementing comment text provided.";
+                              }
+                            })()}
+                          </div>
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
@@ -432,7 +559,7 @@ export default function AssignmentsView({ isInstructor, currentStudent }: Assign
                         )}
 
                         {existingSub && existingSub.grade === undefined && (
-                          <div className="bg-slate-50 border border-slate-205 p-4 rounded-xl text-xs flex items-center space-x-2 text-slate-650">
+                          <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl text-xs flex items-center space-x-2 text-slate-600">
                             <Clock className="h-5 w-5 text-slate-500" />
                             <span>Submitted successfully on {new Date(existingSub.submittedAt).toLocaleDateString()}. Waiting for lecture evaluations.</span>
                           </div>
@@ -506,6 +633,196 @@ export default function AssignmentsView({ isInstructor, currentStudent }: Assign
                   })()}
                 </div>
               )}
+
+              {/* ================= AUTO-GRADE ANALYTICS SECTION ================= */}
+              <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-800 space-y-4">
+                <div className="flex items-center space-x-2">
+                  <BarChart2 className="h-5 w-5 text-indigo-650 dark:text-indigo-400" />
+                  <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-widest font-sans">
+                    Auto-Grade Metrics & Analytics Tool
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                  <div className="bg-slate-50 dark:bg-slate-950 p-4 border border-slate-100 dark:border-slate-800 rounded-xl">
+                    <span className="text-[9px] font-mono text-slate-400 uppercase tracking-wider block font-bold">Class Average</span>
+                    <span className="text-xl font-extrabold text-slate-900 dark:text-slate-100 font-mono">{averageGrade} / 100</span>
+                  </div>
+                  <div className="bg-slate-50 dark:bg-slate-950 p-4 border border-slate-100 dark:border-slate-800 rounded-xl">
+                    <span className="text-[9px] font-mono text-slate-400 uppercase tracking-wider block font-bold">Top Score</span>
+                    <span className="text-xl font-extrabold text-indigo-600 dark:text-indigo-400 font-mono">{maxGrade} / 100</span>
+                  </div>
+                  <div className="bg-slate-50 dark:bg-slate-950 p-4 border border-slate-100 dark:border-slate-800 rounded-xl">
+                    <span className="text-[9px] font-mono text-slate-400 uppercase tracking-wider block font-bold">Pass Rate</span>
+                    <span className="text-xl font-extrabold text-emerald-605 dark:text-emerald-400 font-mono">{passRate}%</span>
+                  </div>
+                  <div className="bg-slate-50 dark:bg-slate-950 p-4 border border-slate-100 dark:border-slate-800 rounded-xl">
+                    <span className="text-[9px] font-mono text-slate-400 uppercase tracking-wider block font-bold font-sans">Filing Count</span>
+                    <span className="text-xl font-extrabold text-slate-900 dark:text-slate-100 font-mono">{assignmentSubmissions.length} Filed</span>
+                  </div>
+                </div>
+
+                {/* Grade distribution charts (custom micro bars) */}
+                {gradedSubmissions.length > 0 && (
+                  <div className="bg-slate-50 dark:bg-slate-950 p-4 border border-slate-200 dark:border-slate-800 rounded-xl space-y-3.5">
+                    <span className="text-[10px] uppercase tracking-wider font-extrabold text-slate-700 dark:text-slate-355 font-sans block">Grade Ranges Distribution Roster</span>
+                    <div className="space-y-2">
+                      {[
+                        { label: "Excellent (85-100)", count: gradesList.filter(g => g >= 85).length, color: "bg-indigo-600" },
+                        { label: "Good (70-84)", count: gradesList.filter(g => g >= 70 && g < 85).length, color: "bg-emerald-605" },
+                        { label: "Satisfactory (50-69)", count: gradesList.filter(g => g >= 50 && g < 70).length, color: "bg-amber-500" },
+                        { label: "Needs Help (0-49)", count: gradesList.filter(g => g < 50).length, color: "bg-rose-500" }
+                      ].map(range => {
+                        const ratio = gradedSubmissions.length > 0 ? (range.count / gradedSubmissions.length) * 100 : 0;
+                        return (
+                          <div key={range.label} className="space-y-1">
+                            <div className="flex justify-between items-center text-[10px] font-semibold font-sans">
+                              <span className="text-slate-600 dark:text-slate-400">{range.label}</span>
+                              <span className="font-mono text-slate-800 dark:text-slate-200">{range.count} submissions ({ratio.toFixed(0)}%)</span>
+                            </div>
+                            <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                              <div className={`${range.color} h-full transition-all duration-300`} style={{ width: `${ratio}%` }}></div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                <div className="bg-indigo-50/50 dark:bg-slate-950 p-3.5 rounded-xl border border-indigo-100 dark:border-slate-800 text-xs text-indigo-900 dark:text-indigo-300 flex items-start space-x-2.5">
+                  <Award className="h-4.5 w-4.5 text-indigo-650 dark:text-indigo-400 shrink-0 mt-0.5 animate-bounce" />
+                  <p className="leading-relaxed font-sans font-medium">
+                    <strong>Auto-Grade Evaluation Analytics:</strong> {insightText}
+                  </p>
+                </div>
+              </div>
+
+              {/* ================= PEER FEEDBACK & REVIEWS HUB ================= */}
+              <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-800 space-y-4">
+                <div className="flex items-center space-x-2 pb-1.5 border-b border-slate-100 dark:border-slate-805">
+                  <MessageSquare className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                  <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-widest font-sans">
+                    Double-Blind Peer Feedback Hub
+                  </h3>
+                </div>
+
+                {/* Student-specific checks: must have uploaded to read/write */}
+                {!isInstructor && !submissions.some(s => s.assignmentId === activeAssignment.id && s.studentId === currentStudent.id) ? (
+                  <div className="bg-amber-500/10 border border-amber-500/35 text-amber-905 dark:text-amber-200 p-4 rounded-xl text-xs font-bold leading-relaxed font-sans shadow-3xs">
+                    🔒 Academic Honor Constraint: You must submit your own homework draft first before you can review drafts of your classmates or see comments on your work. This ensures mutual feedback fairness inside the {activeAssignment.title} framework.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* 1. Add peer reviews (for students on classmates) */}
+                    {!isInstructor && (
+                      <form 
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          const targetSelect = document.getElementById("select-peer-sub") as HTMLSelectElement;
+                          const targetText = document.getElementById("peer-review-comments") as HTMLTextAreaElement;
+                          if (!targetSelect || !targetText || !targetSelect.value || !targetText.value.trim()) return;
+                          
+                          handleAddPeerFeedback(targetSelect.value, currentStudent.id, currentStudent.name, targetText.value);
+                          targetText.value = "";
+                        }}
+                        className="bg-slate-50 dark:bg-slate-950 p-4 border border-slate-200 dark:border-slate-805 rounded-xl space-y-3"
+                      >
+                        <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide font-sans">Write Classmate Review</h4>
+                        
+                        {otherSubmissions.length === 0 ? (
+                          <p className="text-[11px] text-slate-500 italic font-medium">No other student submissions are available for peer evaluation yet.</p>
+                        ) : (
+                          <>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-[10px] text-slate-500 dark:text-slate-400 uppercase font-mono mb-1">Select Anonymous Candidate</label>
+                                <select
+                                  id="select-peer-sub"
+                                  required
+                                  className="w-full text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md p-1.5 text-slate-800 dark:text-slate-200 focus:outline-none"
+                                >
+                                  {otherSubmissions.map((other, idx) => (
+                                    <option key={other.id} value={other.id}>
+                                      Classmate Draft #{idx + 1} ({other.fileName})
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-[10px] text-slate-500 dark:text-slate-400 uppercase font-mono mb-1">Constructive feedback (Minimum 2 critique lines)</label>
+                              <textarea
+                                id="peer-review-comments"
+                                required
+                                rows={2}
+                                placeholder="Leave concrete revision ideas, methodology checks, department citations review..."
+                                className="w-full text-xs bg-white dark:bg-slate-905 border border-slate-200 dark:border-slate-700 p-2.5 rounded-md focus:outline-none focus:border-indigo-650 text-slate-800 dark:text-slate-100"
+                              />
+                            </div>
+
+                            <div className="flex justify-end">
+                              <button
+                                type="submit"
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] uppercase px-3.5 py-1.5 rounded-md transition hover:shadow-sm flex items-center gap-1.5 cursor-pointer font-sans"
+                              >
+                                <ThumbsUp className="h-3 w-3" />
+                                <span>Submit Peer Critique</span>
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </form>
+                    )}
+
+                    {/* 2. Reviews Display */}
+                    <div className="space-y-2.5">
+                      <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide font-sans">
+                        {isInstructor ? "All Peer Critiques Filed" : "Reviews Involving Your Draft"}
+                      </h4>
+
+                      {(() => {
+                        // Instructors see all; students see feedbacks left by them or feedbacks written on theirs
+                        const relevantFeedbacks = peerFeedbacksForActive.filter(f => {
+                          if (isInstructor) return true;
+                          if (f.reviewerStudentId === currentStudent.id) return true;
+                          const mySub = submissions.find(s => s.assignmentId === activeAssignment.id && s.studentId === currentStudent.id);
+                          return mySub ? f.submissionId === mySub.id : false;
+                        });
+
+                        if (relevantFeedbacks.length === 0) {
+                          return <p className="text-xs text-slate-550 dark:text-slate-400 italic text-center py-4 bg-slate-50 dark:bg-slate-950 border border-dashed border-slate-205 dark:border-slate-800 rounded-lg">No peer critiques cataloged yet for this assignment slot.</p>;
+                        }
+
+                        return (
+                          <div className="space-y-2.5 max-h-72 overflow-y-auto">
+                            {relevantFeedbacks.map(f => {
+                              const subRef = submissions.find(s => s.id === f.submissionId);
+                              const isAuthoredByMe = f.reviewerStudentId === currentStudent.id;
+                              
+                              return (
+                                <div key={f.id} className="bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-slate-805 rounded-xl p-3.5 space-y-2.5">
+                                  <div className="flex justify-between items-center text-[10px] font-semibold text-slate-400 font-mono">
+                                    <span>
+                                      {isAuthoredByMe ? "✍️ Review you submitted on classmates" : "🔍 Blind Review received from classmates"}
+                                      {isInstructor && ` (Author: ${f.reviewerStudentName} for: ${subRef ? subRef.studentName : "Unknown"})`}
+                                    </span>
+                                    <span>{new Date(f.createdAt).toLocaleDateString()}</span>
+                                  </div>
+                                  <p className="text-[12px] italic text-slate-800 dark:text-slate-200 leading-relaxed font-sans">
+                                    "{f.comments}"
+                                  </p>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                )}
+              </div>
 
             </div>
           ) : (

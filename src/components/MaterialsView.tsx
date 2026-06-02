@@ -192,6 +192,13 @@ export default function MaterialsView({ isInstructor }: MaterialsProps) {
       return;
     }
 
+    const confirmMsg = `Bulk Publish Confirmation:\n\n` +
+      `You are about to bulk-publish ${readyItems.length} course material(s) into the student study repository.\n\n` +
+      `Are you sure you want to execute this batch publish?`;
+    if (!confirm(confirmMsg)) {
+      return;
+    }
+
     try {
       let successCount = 0;
       readyItems.forEach((item, idx) => {
@@ -312,6 +319,13 @@ export default function MaterialsView({ isInstructor }: MaterialsProps) {
       const parsed = JSON.parse(jsonInput);
       if (!Array.isArray(parsed)) {
         triggerToast("Input is invalid. Must be an Array: [ {...}, {...} ]");
+        return;
+      }
+
+      const confirmMsg = `Bulk JSON Import Confirmation:\n\n` +
+        `This JSON script contains ${parsed.length} course material records to import.\n\n` +
+        `Are you sure you want to execute this batch action and import them?`;
+      if (!confirm(confirmMsg)) {
         return;
       }
 

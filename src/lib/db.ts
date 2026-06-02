@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Student, Attendance, Assignment, Submission, Material, Message, Survey, SurveyResponse, Reflection, ResearchProfile } from "../types";
+import { Student, Attendance, Assignment, Submission, Material, Message, Survey, SurveyResponse, Reflection, ResearchProfile, PeerFeedback, WorkspaceNote } from "../types";
 import { 
   SEED_STUDENTS, SEED_ASSIGNMENTS, SEED_SUBMISSIONS, SEED_MATERIALS, 
   SEED_SURVEYS, SEED_REFLECTIONS, SEED_RESEARCH_PROFILES, SEED_MESSAGES, SEED_ATTENDANCE 
@@ -42,7 +42,7 @@ export class DBManager {
 
   private initLocalStorage() {
     // If empty, seed everything
-    const keys = ["students", "attendance", "assignments", "submissions", "materials", "messages", "surveys", "survey_responses", "reflections", "research_profiles"];
+    const keys = ["students", "attendance", "assignments", "submissions", "materials", "messages", "surveys", "survey_responses", "reflections", "research_profiles", "peer_feedbacks", "workspace_notes"];
     
     // Seeds map
     const seeds: Record<string, any[]> = {
@@ -55,7 +55,9 @@ export class DBManager {
       surveys: SEED_SURVEYS,
       survey_responses: [],
       reflections: SEED_REFLECTIONS,
-      research_profiles: SEED_RESEARCH_PROFILES
+      research_profiles: SEED_RESEARCH_PROFILES,
+      peer_feedbacks: [],
+      workspace_notes: []
     };
 
     keys.forEach(key => {
@@ -413,6 +415,85 @@ export class DBManager {
     this.memoryCache["research_profiles"] = [...list.filter(p => p.id !== profile.id), profile];
     this.saveToLocalStorage("research_profiles");
     this.addSyncOp("research_profiles", profile.id, "set", profile);
+  }
+
+  // --- Peer Feedbacks CRUD ---
+  public getPeerFeedbacks(): PeerFeedback[] {
+    return this.memoryCache["peer_feedbacks"] || [];
+  }
+
+  public addPeerFeedback(feedback: PeerFeedback) {
+    const list = this.getPeerFeedbacks();
+    this.memoryCache["peer_feedbacks"] = [...list, feedback];
+    this.saveToLocalStorage("peer_feedbacks");
+    this.addSyncOp("peer_feedbacks", feedback.id, "set", feedback);
+  }
+
+  // --- Workspace Notes CRUD ---
+  public getWorkspaceNotes(): WorkspaceNote[] {
+    return this.memoryCache["workspace_notes"] || [];
+  }
+
+  public saveWorkspaceNote(note: WorkspaceNote) {
+    const list = this.getWorkspaceNotes();
+    this.memoryCache["workspace_notes"] = [...list.filter(n => n.id !== note.id), note];
+    this.saveToLocalStorage("workspace_notes");
+    this.addSyncOp("workspace_notes", note.id, "set", note);
+  }
+
+  // --- Data Backup (Export / Import) ---
+  public exportBackup(): string {
+    const backupData: Record<string, any[]> = {};
+    const keys = ["students", "attendance", "assignments", "submissions", "materials", "messages", "surveys", "survey_responses", "reflections", "research_profiles", "peer_feedbacks", "workspace_notes"];
+    keys.forEach(key => {
+      backupData[key] = this.memoryCache[key] || [];
+    });
+    return JSON.stringify({
+      version: "1.0",
+      timestamp: new Date().toISOString(),
+      data: backupData
+    }, null, 2);
+  }
+
+  public importBackup(jsonString: string): boolean {
+    try {
+      const parsed = JSON.parse(jsonString);
+      if (!parsed || typeof parsed !== "object" || !parsed.data) {
+        return false;
+      }
+      const keys = ["students", "attendance", "assignments", "submissions", "materials", "messages", "surveys", "survey_responses", "reflections", "research_profiles", "peer_feedbacks", "workspace_notes"];
+      const backupData = parsed.data;
+      
+      // Basic validation: must contain array records for students and assignments
+      if (!Array.isArray(backupData.students) || !Array.isArray(backupData.assignments)) {
+        return false;
+      }
+
+      keys.forEach(key => {
+        if (Array.isArray(backupData[key])) {
+          this.memoryCache[key] = [...backupData[key]];
+          this.saveToLocalStorage(key);
+        }
+      });
+      this.triggerStatusChange();
+      return true;
+    } catch (e) {
+      console.error("Backup import failed:", e);
+      return false;
+    }
+  }
+
+  public clearAllDataAndReset() {
+    const keys = ["students", "attendance", "assignments", "submissions", "materials", "messages", "surveys", "survey_responses", "reflections", "research_profiles", "sync_outbox", "peer_feedbacks", "workspace_notes"];
+    keys.forEach(key => {
+      localStorage.removeItem(STORAGE_PREFIX + key);
+    });
+    this.memoryCache = {};
+    this.outbox = [];
+    this.initLocalStorage();
+    if (typeof window !== "undefined") {
+      window.location.reload();
+    }
   }
 }
 

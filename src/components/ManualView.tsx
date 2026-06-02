@@ -3,13 +3,76 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from "react";
+import React, { useState } from "react";
 import { 
   Layers, Download, HelpCircle, Wifi, Database, Info, 
-  Settings, CheckCircle, RefreshCw, Smartphone, BookOpen 
+  Settings, CheckCircle, RefreshCw, Smartphone, BookOpen, Upload, FileText
 } from "lucide-react";
+import { dbService } from "../lib/db";
 
 export default function ManualView() {
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const handleExportBackup = () => {
+    try {
+      const backupStr = dbService.exportBackup();
+      const blob = new Blob([backupStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `EPU_LMS_Companion_Backup_${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      setSuccessMsg("System offline data backup successfully generated and downloaded!");
+      setTimeout(() => setSuccessMsg(null), 4000);
+    } catch (e: any) {
+      setErrorMsg(`Backup Generation Error: ${e.message || e}`);
+      setTimeout(() => setErrorMsg(null), 4000);
+    }
+  };
+
+  const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    
+    // Safety verification before executing batch overwrite
+    const confirmMessage = `Database Restructure Confirmation:\n\n` +
+      `You are about to restore the local database cache from "${file.name}".\n` +
+      `This batch action will completely overwrite all existing records.\n\n` +
+      `Are you sure you want to proceed?`;
+
+    if (!confirm(confirmMessage)) {
+      e.target.value = ""; // clear
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const text = reader.result as string;
+        const success = dbService.importBackup(text);
+        if (success) {
+          setSuccessMsg("Success! Database cache successfully restored from backup.");
+          setTimeout(() => {
+            setSuccessMsg(null);
+            window.location.reload();
+          }, 1500);
+        } else {
+          setErrorMsg("Error: Selected JSON schema does not conform to a valid student/assignment registry layout.");
+          setTimeout(() => setErrorMsg(null), 4005);
+        }
+      } catch (err: any) {
+        setErrorMsg(`Restore Failure: ${err.message || 'Corrupted file schema'}`);
+        setTimeout(() => setErrorMsg(null), 4005);
+      }
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <div className="space-y-8 animate-fade-in" id="manual-and-faq-workspace">
       
@@ -234,6 +297,104 @@ export default function ManualView() {
             <p className="text-xs text-slate-600 font-medium leading-relaxed pl-3">
               If grades are modified simultaneously, the system relies on LWW matching and highlights the final score. Instructors retain the master privilege to overwrite entries safely.
             </p>
+          </div>
+
+        </div>
+      </div>
+
+      {/* SYSTEM ADMIN MANAGEMENT PANEL & BACKUP HUB */}
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 shadow-sm space-y-6" id="demo-db-admin-panel">
+        <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+          <div className="flex items-center space-x-2.5">
+            <Settings className="h-5 w-5 text-indigo-650" />
+            <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider font-sans">Database Maintenance & Backup Hub</h4>
+          </div>
+          <span className="text-[10px] font-mono text-indigo-700 font-extrabold uppercase bg-indigo-50 px-2 py-0.5 rounded">Admin Console</span>
+        </div>
+
+        {/* Feedback alerts */}
+        {successMsg && (
+          <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 p-3 rounded-lg text-xs font-bold animate-fade-in font-sans">
+            🎉 {successMsg}
+          </div>
+        )}
+        {errorMsg && (
+          <div className="bg-rose-500/10 border border-rose-500/30 text-rose-800 p-3 rounded-lg text-xs font-bold animate-fade-in font-sans">
+            ⚠️ {errorMsg}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 divide-y md:divide-y-0 md:divide-x divide-slate-200">
+          
+          {/* Left column: Backup Operations */}
+          <div className="space-y-4">
+            <div>
+              <h5 className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center gap-1.5 font-sans">
+                <Database className="h-4 w-4 text-indigo-650" />
+                <span>Offline Registry Backups</span>
+              </h5>
+              <p className="text-[11px] text-slate-500 mt-1 leading-relaxed font-medium">
+                Prevent homework loss and keep student attendance records safe by generating local physical files. You can export active datasets as JSON schemas or restore past academic records instantly.
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
+              <button
+                id="btn-export-json-backup"
+                type="button"
+                onClick={handleExportBackup}
+                className="bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-[10.5px] uppercase tracking-wider py-2 px-3.5 rounded-lg shadow-sm transition inline-flex items-center justify-center gap-1.5 cursor-pointer font-sans"
+              >
+                <Download className="h-3.5 w-3.5" />
+                <span>Export JSON Backup</span>
+              </button>
+
+              <div className="relative inline-block">
+                <input
+                  id="file-restore-db"
+                  type="file"
+                  accept="application/json"
+                  onChange={handleImportBackup}
+                  className="hidden"
+                />
+                <label
+                  htmlFor="file-restore-db"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-[10.5px] uppercase tracking-wider py-2 px-3.5 rounded-lg shadow-sm transition inline-flex items-center justify-center gap-1.5 cursor-pointer font-sans"
+                >
+                  <Upload className="h-3.5 w-3.5" />
+                  <span>Restore from Backup</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Right column: Safe wipe reset */}
+          <div className="space-y-4 pt-4 md:pt-0 md:pl-6">
+            <div>
+              <h5 className="text-xs font-bold text-rose-800 uppercase tracking-wide flex items-center gap-1.5 font-sans">
+                <RefreshCw className="h-4 w-4 text-rose-600" />
+                <span>Primes Demonstration Reset</span>
+              </h5>
+              <p className="text-[11px] text-slate-500 mt-1 leading-relaxed font-medium">
+                Running a guest walk-through or demonstration? If your users populated the fields with test registrations, you can purge all local storage cache variations and return the app to its certified seed state.
+              </p>
+            </div>
+
+            <div className="pt-2">
+              <button
+                id="btn-admin-clear-db"
+                type="button"
+                onClick={() => {
+                  if (confirm("Are you sure you want to completely erase the local browser cache and reset the database to its pristine, pre-loaded seed values? This action is irreversible.")) {
+                    dbService.clearAllDataAndReset();
+                  }
+                }}
+                className="bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-[10.5px] uppercase tracking-wider py-2 px-4 rounded-lg shadow-sm transition inline-flex items-center gap-1.5 cursor-pointer font-sans"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                <span>Reset Sandbox Database</span>
+              </button>
+            </div>
           </div>
 
         </div>

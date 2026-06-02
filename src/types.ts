@@ -113,3 +113,22 @@ export interface ResearchProfile {
   currentStage: string; // Dynamic milestone stage representing EPU/EPSU/AAU requirements
   updatedAt: string;
 }
+
+export interface PeerFeedback {
+  id: string;
+  submissionId: string;
+  assignmentId: string;
+  reviewerStudentId: string;
+  reviewerStudentName: string;
+  comments: string;
+  createdAt: string;
+}
+
+export interface WorkspaceNote {
+  id: string;
+  role: "instructor" | "student";
+  studentId?: string; // if student-specific note
+  content: string;
+  updatedAt: string;
+}
+
