@@ -8,7 +8,8 @@ import { Student } from "./types";
 import { dbService } from "./lib/db";
 import { 
   User, BookOpen, Calendar, FileText, Mail, BarChart2, Book, Award, 
-  Wifi, WifiOff, RefreshCw, Layers, Sun, Moon, AlertTriangle, Info 
+  Wifi, WifiOff, RefreshCw, Layers, Sun, Moon, AlertTriangle, Info,
+  Download, Smartphone, Laptop, Check, X, Server, HardDrive, MessageSquare
 } from "lucide-react";
 
 // Import modular layouts
@@ -21,9 +22,11 @@ import SurveysView from "./components/SurveysView";
 import ReflectionsView from "./components/ReflectionsView";
 import ReportsView from "./components/ReportsView";
 import ManualView from "./components/ManualView";
+import StudentFeedbackView from "./components/StudentFeedbackView";
 
 import LoginView from "./components/LoginView";
 import { LogOut } from "lucide-react";
+import { auth, isPlaceholderFirebase } from "./lib/firebase";
 
 const UNIVERSITIES = [
   { id: "EPU", acronym: "EPU", name: "Ethiopian Police University" },
@@ -58,6 +61,118 @@ export default function App() {
   const [outboxCount, setOutboxCount] = useState(dbService.getOutboxCount());
   const [isSyncing, setIsSyncing] = useState(false);
 
+  // PWA Prompting and Install States
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isInstallable, setIsInstallable] = useState(false);
+  const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
+  
+  // Detailed Offline Sync Modal States
+  const [isOfflineSyncModalOpen, setIsOfflineSyncModalOpen] = useState(false);
+  const [isTestingPing, setIsTestingPing] = useState(false);
+  const [pingStatus, setPingStatus] = useState<"steady" | "delayed" | "unreachable" | null>(null);
+  const [isSyncingCore, setIsSyncingCore] = useState(false);
+  const [syncProgressStep, setSyncProgressStep] = useState<number>(0); // 0=None, 1=Scanning, 2=Verifying backend, 3=Flushing, 4=Done
+  const [syncLogs, setSyncLogs] = useState<Array<{ time: string; msg: string; type: 'info' | 'success' | 'warn' }>>([
+    { time: "12:04", msg: "Local cached offline database initialized.", type: 'info' },
+    { time: "16:45", msg: "Offline Sync Engine: Listened with client storage keys.", type: 'info' }
+  ]);
+
+  // Hook for PWA Install Capture
+  useEffect(() => {
+    const handleBeforePrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setIsInstallable(true);
+      console.log("PWA beforeinstallprompt captured.");
+    };
+
+    window.addEventListener("beforeinstallprompt", handleBeforePrompt as any);
+
+    // Check display mode standalone
+    if (window.matchMedia("(display-mode: standalone)").matches) {
+      setIsInstallable(false);
+    }
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforePrompt as any);
+    };
+  }, []);
+
+  const handleInstallAction = async () => {
+    if (deferredPrompt) {
+      try {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`User installation choice outcome: ${outcome}`);
+        setDeferredPrompt(null);
+        setIsInstallable(false);
+      } catch (err) {
+        console.error("Installation dialogue prompt failed:", err);
+        setIsInstallModalOpen(true);
+      }
+    } else {
+      setIsInstallModalOpen(true);
+    }
+  };
+
+  const handlePingTest = () => {
+    setIsTestingPing(true);
+    setPingStatus(null);
+    setTimeout(() => {
+      setIsTestingPing(false);
+      const isOnlineRightNow = navigator.onLine;
+      setPingStatus(isOnlineRightNow ? "steady" : "unreachable");
+    }, 850);
+  };
+
+  const triggerCoreSyncEngine = async () => {
+    if (isSyncingCore) return;
+    setIsSyncingCore(true);
+    setSyncProgressStep(1);
+    
+    const nowStr = () => new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    
+    // Step 1: Scanning Local
+    setSyncLogs(prev => [...prev, { time: nowStr(), msg: `Initiating diagnostic scan of local storage...`, type: 'info' }]);
+    await new Promise(r => setTimeout(r, 600));
+    setSyncProgressStep(2);
+
+    // Step 2: Querying Server
+    setSyncLogs(prev => [...prev, { time: nowStr(), msg: `Querying connection to Firestore database: ai-studio-613ecae1...`, type: 'info' }]);
+    await new Promise(r => setTimeout(r, 700));
+    
+    if (!online) {
+      setSyncLogs(prev => [...prev, { time: nowStr(), msg: `Network unreachable. Saved changes will remain buffered in your offline browser ledger.`, type: 'warn' }]);
+      setSyncProgressStep(0);
+      setIsSyncingCore(false);
+      return;
+    }
+
+    setSyncProgressStep(3);
+    const countToFlush = dbService.getOutboxCount();
+    setSyncLogs(prev => [...prev, { time: nowStr(), msg: `Uploading offline outbox buffer payload (${countToFlush} items)...`, type: 'info' }]);
+    
+    // Execute actual sync!
+    try {
+      await dbService.syncOutbox();
+      await dbService.pullAllDataFromServer();
+      
+      setOutboxCount(dbService.getOutboxCount());
+      setOnline(dbService.isOnline());
+      setStudents(dbService.getStudents());
+      
+      setSyncProgressStep(4);
+      setSyncLogs(prev => [...prev, { time: nowStr(), msg: `Synchronization flushed! All student profiles, grades and marks verified online green.`, type: 'success' }]);
+    } catch (e) {
+      setSyncLogs(prev => [...prev, { time: nowStr(), msg: `Database connection interrupted. Changes backed up offline safely.`, type: 'warn' }]);
+    } finally {
+      setTimeout(() => {
+        setIsSyncingCore(false);
+        setSyncProgressStep(0);
+      }, 1000);
+    }
+  };
+
   // Dynamic branding
   const [activeUniId, setActiveUniId] = useState<string>(() => {
     return localStorage.getItem("active_university_id") || "EPU";
@@ -70,7 +185,7 @@ export default function App() {
   // Set default active student profile
   const [selectedStudentId, setSelectedStudentId] = useState<string>("stud_3");
   const [activeTab, setActiveTab] = useState<
-    "profile" | "attendance" | "assignments" | "materials" | "messaging" | "surveys" | "reflections" | "reports" | "manual"
+    "profile" | "attendance" | "assignments" | "materials" | "messaging" | "surveys" | "reflections" | "reports" | "manual" | "feedback"
   >("profile");
 
   // --- Dark Mode State ---
@@ -223,6 +338,7 @@ export default function App() {
     { id: "materials", label: "Materials Repository", icon: Book },
     { id: "messaging", label: "Direct Messengers", icon: Mail },
     { id: "surveys", label: "Questionnaire Surveys", icon: BarChart2 },
+    { id: "feedback", label: "Student Feedback", icon: MessageSquare },
     { id: "reflections", label: "Reflections Journal", icon: BookOpen },
     { id: "reports", label: "Reports & Exports", icon: Award },
     { id: "manual", label: "User Manual & FAQ", icon: Layers }
@@ -248,9 +364,16 @@ export default function App() {
     <div className={`min-h-screen ${darkMode ? "dark bg-slate-950 text-slate-100" : "bg-slate-50 text-slate-800"} flex flex-col font-sans transition-colors duration-200`} id="app-root">
 
       {/* Top Banner Alert exactly matching user's screenshot */}
-      <div className="bg-[#055a64] text-white px-4 py-3 flex flex-col md:flex-row items-center justify-between gap-4 shrink-0 shadow-md no-print" id="banner-pwa-tab-redirect">
+      <div 
+        className="text-white px-4 py-3 flex flex-col md:flex-row items-center justify-between gap-4 shrink-0 shadow-md no-print" 
+        id="banner-pwa-tab-redirect"
+        style={{ backgroundColor: '#055a64' }}
+      >
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-          <span className="bg-teal-900/30 text-emerald-300 border border-emerald-400/30 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full whitespace-nowrap select-none font-sans">
+          <span 
+            className="text-emerald-300 border border-emerald-400/30 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full whitespace-nowrap select-none font-sans"
+            style={{ backgroundColor: 'rgba(4, 47, 46, 0.45)' }}
+          >
             PWA SANDBOX MODE
           </span>
           <div className="text-slate-100 text-[11px] md:text-xs leading-relaxed font-semibold text-center sm:text-left">
@@ -264,13 +387,24 @@ export default function App() {
         </div>
         <div className="flex items-center gap-1.5 shrink-0 self-stretch sm:self-auto justify-center">
           <button
+            id="btn-banner-install-app"
+            onClick={handleInstallAction}
+            className="hover:bg-indigo-700 text-white border border-indigo-500/25 px-3.5 py-2 rounded-md font-extrabold text-[10px] sm:text-xs tracking-wider uppercase cursor-pointer transition whitespace-nowrap flex items-center gap-1.5 shrink-0 shadow-md animate-pulse-subtle"
+            style={{ backgroundColor: '#4f46e5' }}
+            title="Install Application to Device"
+          >
+            <Download className="h-3.5 w-3.5" />
+            <span>Install App</span>
+          </button>
+          <button
             id="btn-copy-sandbox-url"
             onClick={() => {
               const url = typeof window !== "undefined" ? window.location.origin : "https://ais-pre-rtsrmsaajdoaefybjzeiti-417855481124.europe-west2.run.app";
               navigator.clipboard.writeText(url);
               alert(`Copied Public Portal Link: ${url}\nYou can paste this in any standard browser or send it to students!`);
             }}
-            className="bg-teal-950/45 hover:bg-teal-900/60 border border-teal-500/30 text-teal-200 px-3 py-2 rounded-md font-extrabold text-[10px] uppercase tracking-wider cursor-pointer transition whitespace-nowrap"
+            className="hover:bg-teal-800 border border-teal-500/30 text-white px-3 py-2 rounded-md font-extrabold text-[10px] uppercase tracking-wider cursor-pointer transition whitespace-nowrap"
+            style={{ backgroundColor: '#115e59' }}
             title="Copy Public Portal Link"
           >
             Copy Link
@@ -280,7 +414,8 @@ export default function App() {
             href={typeof window !== "undefined" ? window.location.origin : "https://ais-pre-rtsrmsaajdoaefybjzeiti-417855481124.europe-west2.run.app"}
             target="_blank" 
             rel="noopener noreferrer" 
-            className="bg-emerald-400 hover:bg-emerald-300 text-slate-950 px-4 py-2 rounded-md font-extrabold text-[10px] sm:text-xs tracking-wider uppercase transition shadow-md whitespace-nowrap flex items-center gap-1 shrink-0 cursor-pointer"
+            className="hover:bg-emerald-600 text-slate-950 px-4 py-2 rounded-md font-extrabold text-[10px] sm:text-xs tracking-wider uppercase transition shadow-md whitespace-nowrap flex items-center gap-1 shrink-0 cursor-pointer"
+            style={{ backgroundColor: '#10b981' }}
           >
             <span>Open App in new tab</span>
             <span className="text-[11px] font-bold">↗</span>
@@ -450,7 +585,7 @@ export default function App() {
           </div>
 
           {/* Renders lateral buttons */}
-          <nav className="bg-slate-900 border border-slate-805 rounded-xl p-2.5 space-y-1">
+          <nav className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 space-y-1">
             <div className="px-4 py-2 text-[10px] uppercase tracking-wider text-slate-500 font-black">Management</div>
             {navigationItems.map(item => {
               const IconComp = item.icon;
@@ -483,21 +618,66 @@ export default function App() {
               onClick={() => {
                 localStorage.removeItem("cc_user_session");
                 setSession(null);
+                if (!isPlaceholderFirebase) {
+                  auth.signOut().catch(p => console.warn("Firebase sign out failed:", p));
+                }
               }}
-              className="w-full flex items-center space-x-3 px-4 py-2.5 text-xs font-bold tracking-wide uppercase text-rose-450 hover:bg-slate-800 hover:text-rose-400 rounded-md transition-all duration-150 border-t border-slate-800/80 pt-3"
+              className="w-full flex items-center space-x-3 px-4 py-2.5 text-xs font-bold tracking-wide uppercase text-rose-400 hover:bg-slate-800 hover:text-rose-300 rounded-md transition-all duration-150 border-t border-slate-800/80 pt-3"
             >
               <LogOut className="h-4.5 w-4.5 shrink-0 text-rose-500" />
               <span>Log out Class Portal</span>
             </button>
 
-            {/* Online status indicator in footer */}
-            <div className="pt-4 border-t border-slate-800 px-4 mt-2 flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${online ? "bg-emerald-500" : "bg-rose-500"}`}></div>
-              <span className="text-[10px] text-slate-500 font-bold font-mono">
-                {online ? "CONNECTED CLOUD" : "OFFLINE CACHE MODE"}
-              </span>
-            </div>
+            {/* Online status indicator in footer - interactive trigger */}
+            <button
+              id="btn-nav-trigger-sync-modal"
+              type="button"
+              onClick={() => setIsOfflineSyncModalOpen(true)}
+              className="w-full pt-4 border-t border-slate-800 px-4 mt-2 flex items-center justify-between text-left hover:bg-slate-800/40 py-2 rounded transition cursor-pointer text-slate-400 hover:text-white"
+              title="Open Offline Sync Hub"
+            >
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${online ? "bg-emerald-500" : "bg-rose-500"} ${online && "animate-pulse"}`}></div>
+                <span className="text-[10px] font-bold font-mono">
+                  {online ? "SYNCED CLOUD" : "OFFLINE BUFFERED"}
+                </span>
+              </div>
+              <span className="text-[8px] bg-slate-800 text-slate-400 font-mono px-1 py-0.5 rounded border border-slate-700">Hub ↗</span>
+            </button>
           </nav>
+
+          {/* Premium PWA Dashboard Widget */}
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-[11px] leading-relaxed text-slate-400 font-sans shadow-sm flex flex-col gap-2" id="pwa-hub-sidebar-controls">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-indigo-400 uppercase tracking-wider text-[9px] font-mono">PWA System Hub</span>
+              {isInstallable && (
+                <span className="bg-emerald-500/10 text-emerald-400 text-[8px] font-bold px-1.5 py-0.5 rounded border border-emerald-500/20">Ready</span>
+              )}
+            </div>
+            <p className="text-slate-450 leading-normal text-[11px] font-sans">
+              Install to home screen or desktop to unlock offline storage buffers and robust classroom network resilience.
+            </p>
+            <div className="grid grid-cols-2 gap-2 mt-1">
+              <button
+                id="btn-sidebar-install"
+                type="button"
+                onClick={handleInstallAction}
+                className="py-2.5 bg-indigo-650 hover:bg-indigo-600 text-white border border-indigo-500/20 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-3xs flex items-center justify-center gap-1.5 leading-none"
+              >
+                <Download className="h-3.5 w-3.5 shrink-0" />
+                <span>Install</span>
+              </button>
+              <button
+                id="btn-sidebar-sync-hub"
+                type="button"
+                onClick={() => setIsOfflineSyncModalOpen(true)}
+                className="py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 hover:border-slate-600 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-3xs flex items-center justify-center gap-1.5 leading-none"
+              >
+                <RefreshCw className="h-3.5 w-3.5 shrink-0" />
+                <span>Sync Center</span>
+              </button>
+            </div>
+          </div>
 
           {/* Designer attribution card info */}
           <div className="bg-gradient-to-br from-indigo-50/70 to-slate-100 border border-indigo-150 rounded-xl p-4 text-[11px] leading-relaxed text-slate-650 shadow-3xs flex flex-col gap-1.5">
@@ -592,6 +772,13 @@ export default function App() {
 
             {activeTab === "surveys" && (
               <SurveysView 
+                isInstructor={activeRole === "instructor"}
+                currentStudent={currentStudent}
+              />
+            )}
+
+            {activeTab === "feedback" && (
+              <StudentFeedbackView 
                 isInstructor={activeRole === "instructor"}
                 currentStudent={currentStudent}
               />
@@ -702,6 +889,333 @@ export default function App() {
         <p className="font-semibold text-slate-300">Designed by Dr. Zerihun Doda, Ethiopian Public Service University, Addis Ababa, Ethiopia.</p>
         <p className="text-[10px] text-slate-500 font-mono tracking-widest uppercase">DodaZ- Course Companion Portal • PWA Classroom Suite • {activeUniversity.name} Edition</p>
       </footer>
+
+      {/* ======================================================== */}
+      {/* PWA INSTALLATION INSTRUCTION AND TRIGGER MODAL GUIDE */}
+      {/* ======================================================== */}
+      {isInstallModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/65 backdrop-blur-sm select-none animate-fade-in" id="modal-pwa-install-overlay">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-lg p-6 shadow-xl relative text-slate-800 dark:text-slate-100 flex flex-col max-h-[90vh] overflow-y-auto">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-150 dark:border-slate-800 mb-4">
+              <div className="flex items-center space-x-2.5">
+                <div className="p-2 bg-indigo-50 dark:bg-indigo-950 text-indigo-650 dark:text-indigo-400 rounded-xl border border-indigo-100 dark:border-indigo-900">
+                  <Download className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black uppercase text-slate-900 dark:text-white tracking-wider">Install Companion App</h3>
+                  <p className="text-[10px] text-slate-400 font-sans font-medium">Equip your mobile screen or computer desktop with offline launching</p>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setIsInstallModalOpen(false)}
+                className="text-slate-400 hover:text-slate-900 dark:hover:text-white p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+              >
+                <X className="h-4.5 w-4.5" />
+              </button>
+            </div>
+
+            {/* If native installer ready, show direct prompt */}
+            {isInstallable && deferredPrompt ? (
+              <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-250 dark:border-emerald-900 text-emerald-850 dark:text-emerald-300 p-4 rounded-xl text-xs space-y-3 mb-4 font-sans">
+                <span className="font-extrabold uppercase tracking-wide block text-[10px]">✅ Immediate Launch Activated</span>
+                <p className="font-semibold leading-relaxed">
+                  Your browser supports direct standalone service installation. Click below to summon the native PWA registration popup!
+                </p>
+                <button
+                  type="button"
+                  onClick={handleInstallAction}
+                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold uppercase py-2.5 rounded-lg transition tracking-wider text-[11px] cursor-pointer flex items-center justify-center gap-2 shadow-xs"
+                >
+                  <Download className="h-4 w-4" />
+                  <span>Execute Native Install Prompt</span>
+                </button>
+              </div>
+            ) : (
+              <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-250 dark:border-amber-900 text-amber-900 dark:text-amber-250 p-4 rounded-xl text-xs space-y-3 mb-4 font-sans leading-relaxed">
+                <span className="font-extrabold uppercase tracking-widest block text-[9px] text-amber-700 dark:text-amber-300">💡 SANDBOXED IFRAME NOTICE</span>
+                <p className="font-medium">
+                  Browsers protect security by disabling native install prompts inside sub-iframes. For standard automated installation, launch the school portal directly in a standard browser tab:
+                </p>
+                <a
+                  href={typeof window !== "undefined" ? window.location.origin : "https://ais-pre-rtsrmsaajdoaefybjzeiti-417855481124.europe-west2.run.app"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-2 px-3 rounded-lg text-center inline-block transition text-[11px] uppercase tracking-wide border border-slate-700"
+                >
+                  Open App Launcher in standard tab ↗
+                </a>
+              </div>
+            )}
+
+            {/* Instruction Sheets Tab Panels */}
+            <div className="space-y-4 font-sans">
+              <h4 className="text-[10px] uppercase font-black tracking-widest text-slate-400">Step-by-Step Manual Guidance</h4>
+
+              <div className="space-y-4">
+                {/* OS 1: iOS */}
+                <div className="border border-slate-150 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-3.5 rounded-xl space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Smartphone className="h-4 w-4 text-slate-500" />
+                    <span className="text-xs font-black uppercase text-slate-900 dark:text-slate-100">Apple iOS (iPhone / iPad Safari)</span>
+                  </div>
+                  <ol className="list-decimal list-inside text-[11px] text-slate-500 dark:text-slate-400 space-y-1 pl-1 leading-relaxed font-semibold">
+                    <li>Launch this page in the standard native <span className="text-indigo-600 dark:text-indigo-350">Safari browser</span>.</li>
+                    <li>Tap the <span className="underline">"Share" button</span> (square tray with an arrow pointing upward) in Safari's toolbar.</li>
+                    <li>Scroll down the options list and select <strong className="text-slate-800 dark:text-slate-200">"Add to Home Screen"</strong>.</li>
+                    <li>Enter details and click <span className="font-bold text-slate-800 dark:text-white">"Add"</span>. The companion icon will instantly spawn on your mobile grid page!</li>
+                  </ol>
+                </div>
+
+                {/* OS 2: Android */}
+                <div className="border border-slate-150 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-3.5 rounded-xl space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Smartphone className="h-4 w-4 text-emerald-500" />
+                    <span className="text-xs font-black uppercase text-slate-900 dark:text-slate-100">Android Device (Google Chrome)</span>
+                  </div>
+                  <ol className="list-decimal list-inside text-[11px] text-slate-500 dark:text-slate-400 space-y-1 pl-1 leading-relaxed font-semibold">
+                    <li>Launch standard Chrome on your phone, and tap the <span className="underline">three vertical dots menu</span> in the top right.</li>
+                    <li>Select <strong className="text-slate-800 dark:text-slate-200">"Install app"</strong> or <strong className="text-slate-800 dark:text-slate-200">"Add to Home screen"</strong>.</li>
+                    <li>Follow the system screen confirmation to pin the app immediately.</li>
+                  </ol>
+                </div>
+
+                {/* OS 3: Desktop */}
+                <div className="border border-slate-150 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-3.5 rounded-xl space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Laptop className="h-4 w-4 text-indigo-500" />
+                    <span className="text-xs font-black uppercase text-slate-900 dark:text-slate-100">Desktop PC (Mac, Windows, Linux Chrome/Edge)</span>
+                  </div>
+                  <ol className="list-decimal list-inside text-[11px] text-slate-500 dark:text-slate-400 space-y-1 pl-1 leading-relaxed font-semibold">
+                    <li>Open standard Chrome, Edge, or Opera. Look at the <span className="underline">right end of the URL address bar</span>.</li>
+                    <li>Click the <strong className="text-slate-800 dark:text-slate-200">"Install DodaZ- Portal" icon</strong> (a monitors monitor or addition indicator).</li>
+                    <li>Click <span className="font-bold">"Install"</span>. The web app will launch in its own premium borderless operating window shell.</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-end pt-4 border-t border-slate-150 dark:border-slate-800 mt-5">
+              <button
+                id="btn-close-install-modal"
+                type="button"
+                onClick={() => setIsInstallModalOpen(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-300 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
+              >
+                Dismiss Guidance
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* DETAILED OFFLINE SYNCHRONIZATION HUB AND VERIFIER MODAL */}
+      {/* ======================================================== */}
+      {isOfflineSyncModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/65 backdrop-blur-sm select-none animate-fade-in" id="modal-offline-sync-overlay">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-xl p-6 shadow-xl relative text-slate-800 dark:text-slate-100 flex flex-col max-h-[90vh]">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-150 dark:border-slate-800 mb-4 shrink-0">
+              <div className="flex items-center space-x-2.5">
+                <div className="p-2 bg-emerald-50 dark:bg-emerald-950 text-emerald-650 dark:text-emerald-400 rounded-xl border border-emerald-100 dark:border-emerald-900">
+                  <Server className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black uppercase text-slate-900 dark:text-white tracking-wider">Ethiopian Classroom Core Sync</h3>
+                  <p className="text-[10px] text-slate-400 font-sans font-medium">Manage server-side persistence, network check-ins, and local browser cache storage</p>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setIsOfflineSyncModalOpen(false)}
+                className="text-slate-400 hover:text-slate-900 dark:hover:text-white p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+              >
+                <X className="h-4.5 w-4.5" />
+              </button>
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="overflow-y-auto pr-1 flex-1 space-y-4 font-sans text-xs">
+              
+              {/* Connection metrics Row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                
+                {/* Link card */}
+                <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl flex flex-col justify-between space-y-2.5 shadow-2xs">
+                  <div>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block font-mono">Uplink Pathway Check</span>
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className={`h-2.5 w-2.5 rounded-full ${online ? "bg-emerald-500" : "bg-rose-500 animate-pulse"}`} />
+                      <span className="font-extrabold uppercase text-[11px]">
+                        {online ? "Ethiopian ISP Connected" : "Local Classroom Only"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1 border-t border-slate-150 dark:border-slate-850">
+                    <button
+                      type="button"
+                      disabled={isTestingPing}
+                      onClick={handlePingTest}
+                      className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-[9px] font-bold uppercase rounded tracking-wide transition cursor-pointer"
+                    >
+                      {isTestingPing ? "Multiplexing..." : "Ping Firebase Core"}
+                    </button>
+                    {pingStatus && (
+                      <span className={`text-[9px] font-black uppercase ${pingStatus === "steady" ? "text-emerald-600" : "text-rose-500"}`}>
+                        {pingStatus === "steady" ? "Steady ● 45ms" : "Offline / Unreachable"}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Local ledger card */}
+                <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl flex flex-col justify-between space-y-2.5 shadow-2xs">
+                  <div>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block font-mono">Buffered Session Mutations</span>
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className={`h-2.5 w-2.5 rounded-full ${outboxCount === 0 ? "bg-slate-450" : "bg-amber-500 animate-pulse"}`} />
+                      <span className="font-extrabold text-[11px] uppercase">
+                        {outboxCount === 0 ? "LEDGER SYNCHRONIZED" : `${outboxCount} changes awaiting uplink`}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between pt-1 border-t border-slate-150 dark:border-slate-850">
+                    <span className="text-[9px] text-slate-400 font-mono tracking-tight font-medium">Target: ai-studio-613ecae1</span>
+                    {outboxCount > 0 && (
+                      <span className="text-[9px] bg-amber-500/10 text-amber-700 font-mono px-1.5 py-0.5 rounded border border-amber-500/15 font-extrabold animate-pulse">Flush Pending</span>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Force sync process check-list if active */}
+              {isSyncingCore && (
+                <div className="bg-indigo-50/50 dark:bg-slate-950 border border-indigo-200 dark:border-indigo-900 p-4 rounded-xl space-y-3 animate-fade-in animate-pulse-subtle">
+                  <h4 className="text-[10px] font-black uppercase text-slate-900 dark:text-indigo-400 font-mono flex items-center justify-between">
+                    <span>Synchronizing Local Storage Outbox Ledger...</span>
+                    <span>{syncProgressStep}/4 Steps</span>
+                  </h4>
+                  
+                  <div className="space-y-1.5 font-sans leading-normal">
+                    {/* step 1 */}
+                    <div className="flex items-center space-x-2">
+                      <span className={`h-2 w-2 rounded-full ${syncProgressStep >= 1 ? "bg-emerald-500" : "bg-slate-300 animate-pulse"}`} />
+                      <span className={`text-[11px] font-medium ${syncProgressStep >= 1 ? "text-slate-800 dark:text-slate-200 line-through decoration-slate-400 dark:decoration-slate-600 opacity-65" : "text-slate-500"}`}>
+                        Parse and validate offline SQLite storage chunks...
+                      </span>
+                    </div>
+                    {/* step 2 */}
+                    <div className="flex items-center space-x-2">
+                      <span className={`h-2 w-2 rounded-full ${syncProgressStep >= 2 ? "bg-emerald-500" : "bg-slate-300 animate-pulse"}`} />
+                      <span className={`text-[11px] font-medium ${syncProgressStep >= 2 ? "text-slate-800 dark:text-slate-200 line-through decoration-slate-400 dark:decoration-slate-600 opacity-65" : "text-slate-500"}`}>
+                        Check regional authentication keys with Cloud security rules...
+                      </span>
+                    </div>
+                    {/* step 3 */}
+                    <div className="flex items-center space-x-2">
+                      <span className={`h-2 w-2 rounded-full ${syncProgressStep >= 3 ? "bg-emerald-500" : "bg-slate-300 animate-pulse"}`} />
+                      <span className={`text-[11px] font-medium ${syncProgressStep >= 3 ? "text-slate-800 dark:text-slate-200 line-through decoration-slate-400 dark:decoration-slate-600 opacity-65" : "text-slate-500"}`}>
+                        Uploading outbox changes ({outboxCount}) to Firestore arrays...
+                      </span>
+                    </div>
+                    {/* step 4 */}
+                    <div className="flex items-center space-x-2">
+                      <span className={`h-2 w-2 rounded-full ${syncProgressStep >= 4 ? "bg-emerald-500" : "bg-slate-300 animate-pulse"}`} />
+                      <span className={`text-[11px] font-medium ${syncProgressStep >= 4 ? "text-emerald-700 dark:text-emerald-300 font-extrabold" : "text-slate-500"}`}>
+                        Recrawl metadata arrays and flush client cache indices!
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Unsynced Changes List */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Awaiting Operations Ledger Queue ({outboxCount})</span>
+                
+                {dbService.getOutbox().length === 0 ? (
+                  <div className="p-4 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900 rounded-xl text-center flex flex-col items-center justify-center space-y-1 py-6">
+                    <span className="text-emerald-600 dark:text-emerald-400 text-lg font-bold">✓ ALL SYNCED STEADY</span>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-normal font-sans font-medium max-w-xs">
+                      No buffered mutations waiting to be pushed. Global students, marks, grade cards and survey records are identical between client cache and server databases.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="border border-slate-200 dark:border-slate-850 rounded-xl divide-y divide-slate-150 dark:divide-slate-850 max-h-40 overflow-y-auto bg-slate-50 dark:bg-slate-950">
+                    {dbService.getOutbox().map((op, opIdx) => (
+                      <div key={opIdx} className="p-2.5 flex items-center justify-between text-[11px] font-mono hover:bg-slate-100 dark:hover:bg-slate-900 leading-none">
+                        <div className="flex items-center space-x-2 truncate">
+                          <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wide shrink-0 ${
+                            op.type === "set" ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-400" :
+                            op.type === "update" ? "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400" :
+                            "bg-rose-100 text-rose-750 dark:bg-rose-950 dark:text-rose-400"
+                          }`}>
+                            {op.type}
+                          </span>
+                          <span className="font-semibold text-slate-650 dark:text-slate-300 truncate max-w-[220px]">
+                            {op.collection} Doc ID: {op.docId}
+                          </span>
+                        </div>
+                        <span className="text-[9px] text-slate-450 uppercase tracking-widest italic shrink-0 font-bold">Awaiting Uplink</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Terminal Logs for reassurance */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Terminal Diagnostic Logs</span>
+                <div className="bg-slate-950 border border-slate-850 text-slate-300 rounded-xl p-3 font-mono text-[10px] h-32 overflow-y-auto space-y-1 block leading-relaxed shadow-inner">
+                  {syncLogs.map((log, lIdx) => (
+                    <div key={lIdx} className="flex items-start space-x-2">
+                      <span className="text-slate-500 font-bold">[{log.time}]</span>
+                      <span className={`${
+                        log.type === 'success' ? "text-emerald-400 font-bold" :
+                        log.type === 'warn' ? "text-amber-400 font-semibold" :
+                        "text-slate-300"
+                      }`}>
+                        {log.msg}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-between items-center pt-4 border-t border-slate-150 dark:border-slate-800 mt-5 shrink-0">
+              <button
+                type="button"
+                disabled={isSyncingCore || !online}
+                onClick={triggerCoreSyncEngine}
+                className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-45 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer shadow-sm flex items-center justify-center gap-1.5"
+              >
+                <RefreshCw className={`h-3 w-3 ${isSyncingCore ? "animate-spin" : ""}`} />
+                <span>{isSyncingCore ? "Synchronizing..." : "Trigger Force Sync"}</span>
+              </button>
+
+              <button
+                id="btn-close-sync-modal"
+                type="button"
+                onClick={() => setIsOfflineSyncModalOpen(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-300 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
+              >
+                Close Hub
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

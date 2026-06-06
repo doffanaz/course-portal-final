@@ -88,31 +88,31 @@ export default function ReflectionsView({ isInstructor, currentStudent }: Reflec
         
         {/* Left Side: Create action (only for students) */}
         {!isInstructor && (
-          <div className="lg:col-span-4 bg-slate-50 border border-slate-200 rounded-xl p-5 h-fit shadow-sm">
-            <div className="flex items-center space-x-2 border-b border-slate-200 pb-3 mb-4">
-              <BookOpen className="h-5 w-5 text-slate-600" />
-              <h3 className="text-xs font-bold text-slate-904 uppercase tracking-wider">New Journal Entry</h3>
+          <div className="lg:col-span-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 h-fit shadow-sm">
+            <div className="flex items-center space-x-2 border-b border-slate-200 dark:border-slate-800 pb-3 mb-4">
+              <BookOpen className="h-5 w-5 text-slate-600 dark:text-slate-400" />
+              <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">New Journal Entry</h3>
             </div>
 
             <form onSubmit={handleStudentSubmit} className="space-y-4">
               <div>
-                <label className="block text-[10px] text-slate-500 font-mono uppercase mb-1">Session Date</label>
+                <label className="block text-[10px] text-slate-600 dark:text-slate-300 font-mono uppercase mb-1">Session Date</label>
                 <div className="relative">
-                  <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                  <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 dark:text-slate-500" />
                   <input
                     id="reflection-date"
                     type="date"
                     required
                     value={sessionDate}
                     onChange={e => setSessionDate(e.target.value)}
-                    className="w-full text-xs border border-slate-200 rounded-md pl-10 pr-3 py-2 bg-white text-slate-900 focus:outline-none focus:border-indigo-600"
+                    className="w-full text-xs border border-slate-200 dark:border-slate-800 rounded-md pl-10 pr-3 py-2 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 dark:focus:border-indigo-400 font-medium"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[10px] text-slate-550 font-mono uppercase mb-1">Critical Reflections</label>
-                <p className="text-[10px] text-slate-400 mb-2">What concepts did you master today? What gaps did you observe?</p>
+                <label className="block text-[10px] text-slate-600 dark:text-slate-300 font-mono uppercase mb-1">Critical Reflections</label>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-2">What concepts did you master today? What gaps did you observe?</p>
                 <textarea
                   id="reflection-content"
                   required
@@ -120,7 +120,7 @@ export default function ReflectionsView({ isInstructor, currentStudent }: Reflec
                   placeholder="Analyze today's lecture themes, lab struggles, or research insights..."
                   value={journalText}
                   onChange={e => setJournalText(e.target.value)}
-                  className="w-full text-xs font-mono border border-slate-200 rounded-md px-3 py-2 bg-white text-slate-900 focus:outline-none focus:border-indigo-600"
+                  className="w-full text-xs font-mono border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 dark:focus:border-indigo-400"
                 />
               </div>
 
@@ -174,7 +174,7 @@ export default function ReflectionsView({ isInstructor, currentStudent }: Reflec
                     ) : (
                       <div className="pt-2">
                         {activeRefId === ref.id ? (
-                           <form onSubmit={(e) => handleFeedbackSubmit(e, ref.id)} className="space-y-3">
+                         <form onSubmit={(e) => handleFeedbackSubmit(e, ref.id)} className="space-y-3">
                             <input
                               id={`feedback-input-${ref.id}`}
                               type="text"
@@ -182,21 +182,21 @@ export default function ReflectionsView({ isInstructor, currentStudent }: Reflec
                               placeholder="Write direct mentoring review notes..."
                               value={feedbackInput}
                               onChange={e => setFeedbackInput(e.target.value)}
-                              className="w-full text-xs border border-slate-350 rounded-md px-3 py-2 bg-white focus:outline-none focus:border-indigo-600"
+                              className="w-full text-xs border border-slate-350 dark:border-slate-800 rounded-md px-3 py-2 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 dark:focus:border-indigo-400"
                             />
                             <div className="flex justify-end gap-1.5">
                               <button
                                 id={`btn-cancel-feedback-${ref.id}`}
                                 type="button" 
                                 onClick={() => { setActiveRefId(null); setFeedbackInput(""); }}
-                                className="border border-slate-200 text-slate-600 text-[10px] px-2.5 py-1 rounded-sm"
+                                className="border border-slate-200 dark:border-slate-805 text-slate-600 dark:text-slate-300 text-[10px] px-2.5 py-1 rounded-sm hover:bg-slate-50 dark:hover:bg-slate-900"
                               >
                                 Cancel
                               </button>
                               <button
                                 id={`btn-save-feedback-${ref.id}`}
                                 type="submit" 
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] px-3 py-1.5 rounded-sm font-semibold transition"
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] px-3 py-1.5 rounded-sm font-semibold transition cursor-pointer"
                               >
                                 Save Feedback
                               </button>

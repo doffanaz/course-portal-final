@@ -241,39 +241,39 @@ export default function AssignmentsView({ isInstructor, currentStudent }: Assign
 
           {/* Creation modal interface in the sidebar */}
           {isCreating ? (
-            <form onSubmit={handleCreateAssignment} className="bg-white border border-slate-200 p-4 rounded-xl space-y-3 shadow-md">
-              <h4 className="text-xs font-bold text-slate-900 uppercase">New Assignment Form</h4>
+            <form onSubmit={handleCreateAssignment} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl space-y-3 shadow-md">
+              <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase">New Assignment Form</h4>
               <div>
-                <label className="block text-[10px] text-slate-500 font-mono uppercase mb-1">Title</label>
+                <label className="block text-[10px] text-slate-600 dark:text-slate-400 font-mono uppercase mb-1">Title</label>
                 <input
                   id="assignment-title"
                   type="text"
                   required
                   value={newTitle}
                   onChange={e => setNewTitle(e.target.value)}
-                  className="w-full text-xs border border-slate-200 rounded-md px-2.5 py-1.5 focus:outline-none focus:border-indigo-600"
+                  className="w-full text-xs border border-slate-200 dark:border-slate-800 rounded-md px-2.5 py-1.5 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 dark:focus:border-indigo-400"
                 />
               </div>
               <div>
-                <label className="block text-[10px] text-slate-500 font-mono uppercase mb-1">Criteria/Instructions</label>
+                <label className="block text-[10px] text-slate-600 dark:text-slate-400 font-mono uppercase mb-1">Criteria/Instructions</label>
                 <textarea
                   id="assignment-criteria"
                   rows={3}
                   required
                   value={newDesc}
                   onChange={e => setNewDesc(e.target.value)}
-                  className="w-full text-xs border border-slate-200 rounded-md px-2.5 py-1.5 focus:outline-none focus:border-indigo-600"
+                  className="w-full text-xs border border-slate-200 dark:border-slate-800 rounded-md px-2.5 py-1.5 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 dark:focus:border-indigo-400"
                 />
               </div>
               <div>
-                <label className="block text-[10px] text-slate-500 font-mono uppercase mb-1">Due Date</label>
+                <label className="block text-[10px] text-slate-600 dark:text-slate-400 font-mono uppercase mb-1">Due Date</label>
                 <input
                   id="assignment-due"
                   type="datetime-local"
                   required
                   value={newDue}
                   onChange={e => setNewDue(e.target.value)}
-                  className="w-full text-xs border border-slate-200 rounded-md px-2.5 py-1.5 focus:outline-none focus:border-indigo-600"
+                  className="w-full text-xs border border-slate-400/50 dark:border-slate-800 rounded-md px-2.5 py-1.5 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 dark:focus:border-indigo-400"
                 />
               </div>
               <div className="flex justify-end gap-1.5 pt-2">
@@ -436,7 +436,7 @@ export default function AssignmentsView({ isInstructor, currentStudent }: Assign
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                           <div>
-                            <label className="block text-[10px] text-slate-600 font-mono uppercase mb-2">Numeric Mark (0-100)</label>
+                            <label className="block text-[10px] text-slate-600 dark:text-slate-400 font-mono uppercase mb-2">Numeric Mark (0-100)</label>
                             <input
                               id="input-mark"
                               type="number"
@@ -445,11 +445,11 @@ export default function AssignmentsView({ isInstructor, currentStudent }: Assign
                               required
                               value={numGrade}
                               onChange={e => setNumGrade(parseInt(e.target.value) || 0)}
-                              className="w-full text-sm font-mono border border-slate-300 rounded-md px-3 py-2 bg-white text-slate-900 focus:outline-none focus:border-indigo-600"
+                              className="w-full text-sm font-mono border border-slate-300 dark:border-slate-800 rounded-md px-3 py-2 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 dark:focus:border-indigo-400"
                             />
                           </div>
                           <div>
-                            <label className="block text-[10px] text-slate-600 font-mono uppercase mb-2">Feedback & Comments</label>
+                            <label className="block text-[10px] text-slate-600 dark:text-slate-400 font-mono uppercase mb-2">Feedback & Comments</label>
                             <input
                               id="input-grade-feedback"
                               type="text"
@@ -457,7 +457,7 @@ export default function AssignmentsView({ isInstructor, currentStudent }: Assign
                               placeholder="Key recommendations, observations..."
                               value={feedbackText}
                               onChange={e => setFeedbackText(e.target.value)}
-                              className="w-full text-sm border border-slate-300 rounded-md px-3 py-2 bg-white text-slate-900 focus:outline-none focus:border-indigo-600"
+                              className="w-full text-sm border border-slate-300 dark:border-slate-800 rounded-md px-3 py-2 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 dark:focus:border-indigo-400"
                             />
                           </div>
                         </div>
@@ -503,7 +503,7 @@ export default function AssignmentsView({ isInstructor, currentStudent }: Assign
                               <div className="flex items-center space-x-3">
                                 {sub.grade !== undefined ? (
                                   <div className="text-right">
-                                    <div className="text-sm font-bold font-mono text-slate-905">Mark: {sub.grade}/100</div>
+                                    <div className="text-sm font-bold font-mono text-slate-900 dark:text-slate-100">Mark: {sub.grade}/100</div>
                                     <div className="text-[10px] text-slate-500 font-sans italic truncate max-w-[150px]">{sub.comments}</div>
                                   </div>
                                 ) : (
@@ -547,7 +547,7 @@ export default function AssignmentsView({ isInstructor, currentStudent }: Assign
                           <div className="bg-emerald-50 border border-emerald-250 p-5 rounded-xl flex items-start space-x-3.5 shadow-xs">
                             <CheckCircle className="h-6 w-6 text-emerald-800 shrink-0" />
                             <div>
-                              <h4 className="text-sm font-bold text-emerald-905 uppercase tracking-wide">Graded & Completed</h4>
+                              <h4 className="text-sm font-bold text-emerald-900 dark:text-emerald-400 uppercase tracking-wide">Graded & Completed</h4>
                               <p className="text-2xl font-bold font-mono text-emerald-950 mt-1">{existingSub.grade} / 100 Points</p>
                               {existingSub.comments && (
                                 <p className="text-xs text-emerald-800 italic mt-2 font-sans">
@@ -567,7 +567,7 @@ export default function AssignmentsView({ isInstructor, currentStudent }: Assign
 
                         {/* Submission input form */}
                         <form onSubmit={handleStudentSubmit} className="space-y-4">
-                          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-widest border-b border-slate-100 pb-2">
+                          <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 pb-2">
                             {existingSub ? "Homework Resubmission Portal" : "Submit Homework Assignment"}
                           </h3>
 
@@ -576,7 +576,7 @@ export default function AssignmentsView({ isInstructor, currentStudent }: Assign
                             onDragOver={handleDragOver}
                             onDragLeave={handleDragLeave}
                             onDrop={handleDrop}
-                            className={`border-2 border-dashed rounded-xl p-6 text-center transition ${isDragging ? "bg-indigo-50/50 border-indigo-600" : "border-slate-300 hover:bg-slate-50"}`}
+                            className={`border-2 border-dashed rounded-xl p-6 text-center transition ${isDragging ? "bg-indigo-50/50 dark:bg-indigo-950/40 border-indigo-600 dark:border-indigo-400" : "border-slate-300 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/40"}`}
                           >
                             <input
                               id="assignment-file-input"
@@ -585,27 +585,27 @@ export default function AssignmentsView({ isInstructor, currentStudent }: Assign
                               onChange={handleFileChange}
                             />
                             <label htmlFor="assignment-file-input" className="cursor-pointer space-y-2 block">
-                              <Upload className="h-8 w-8 text-slate-400 mx-auto" />
-                              <div className="text-xs text-slate-600">
-                                <span className="font-bold underline text-indigo-600">Click here to select</span> or drag-and-drop course documents (PDF, DOCX, PPTX)
+                              <Upload className="h-8 w-8 text-slate-400 dark:text-slate-600 mx-auto" />
+                              <div className="text-xs text-slate-600 dark:text-slate-300">
+                                <span className="font-bold underline text-indigo-600 dark:text-indigo-400">Click here to select</span> or drag-and-drop course documents (PDF, DOCX, PPTX)
                               </div>
-                              <p className="text-[10px] text-slate-400 font-mono">Ethio bandwidth friendly payload compress validation enabled</p>
+                              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">Ethio bandwidth friendly payload compress validation enabled</p>
                             </label>
                           </div>
 
                           {fileName && (
-                            <div className="bg-slate-50 border border-slate-200 rounded-md p-3 flex items-center justify-between text-xs font-mono">
+                            <div className="bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-md p-3 flex items-center justify-between text-xs font-mono">
                               <div className="flex items-center space-x-2">
                                 <FileText className="h-4 w-4 text-slate-500" />
-                                <span className="font-bold text-slate-800">{fileName}</span>
+                                <span className="font-bold text-slate-800 dark:text-slate-300">{fileName}</span>
                               </div>
-                              <button type="button" onClick={() => setFileName("")} className="text-rose-600 hover:underline">Clear</button>
+                              <button type="button" onClick={() => setFileName("")} className="text-rose-600 dark:text-rose-450 hover:underline">Clear</button>
                             </div>
                           )}
 
                           {/* Answers supplement textarea */}
                           <div>
-                            <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Supplement Explanations / Written Answers</label>
+                            <label className="block text-xs font-semibold text-slate-650 dark:text-slate-400 uppercase tracking-wider mb-2">Supplement Explanations / Written Answers</label>
                             <textarea
                               id="homework-supplement-text"
                               required
@@ -613,7 +613,7 @@ export default function AssignmentsView({ isInstructor, currentStudent }: Assign
                               placeholder="Complete your assignment details or write short study supplement annotations here..."
                               value={submissionText}
                               onChange={e => setSubmissionText(e.target.value)}
-                              className="w-full text-sm font-mono border border-slate-200 rounded-md px-3 py-2 bg-white text-slate-900 focus:outline-none focus:border-indigo-600"
+                              className="w-full text-sm font-mono border border-slate-300 dark:border-slate-800 rounded-md px-3 py-2 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 dark:focus:border-indigo-400"
                             />
                           </div>
 
@@ -654,7 +654,7 @@ export default function AssignmentsView({ isInstructor, currentStudent }: Assign
                   </div>
                   <div className="bg-slate-50 dark:bg-slate-950 p-4 border border-slate-100 dark:border-slate-800 rounded-xl">
                     <span className="text-[9px] font-mono text-slate-400 uppercase tracking-wider block font-bold">Pass Rate</span>
-                    <span className="text-xl font-extrabold text-emerald-605 dark:text-emerald-400 font-mono">{passRate}%</span>
+                    <span className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">{passRate}%</span>
                   </div>
                   <div className="bg-slate-50 dark:bg-slate-950 p-4 border border-slate-100 dark:border-slate-800 rounded-xl">
                     <span className="text-[9px] font-mono text-slate-400 uppercase tracking-wider block font-bold font-sans">Filing Count</span>
@@ -665,11 +665,11 @@ export default function AssignmentsView({ isInstructor, currentStudent }: Assign
                 {/* Grade distribution charts (custom micro bars) */}
                 {gradedSubmissions.length > 0 && (
                   <div className="bg-slate-50 dark:bg-slate-950 p-4 border border-slate-200 dark:border-slate-800 rounded-xl space-y-3.5">
-                    <span className="text-[10px] uppercase tracking-wider font-extrabold text-slate-700 dark:text-slate-355 font-sans block">Grade Ranges Distribution Roster</span>
+                    <span className="text-[10px] uppercase tracking-wider font-extrabold text-slate-700 dark:text-slate-300 font-sans block">Grade Ranges Distribution Roster</span>
                     <div className="space-y-2">
                       {[
                         { label: "Excellent (85-100)", count: gradesList.filter(g => g >= 85).length, color: "bg-indigo-600" },
-                        { label: "Good (70-84)", count: gradesList.filter(g => g >= 70 && g < 85).length, color: "bg-emerald-605" },
+                        { label: "Good (70-84)", count: gradesList.filter(g => g >= 70 && g < 85).length, color: "bg-emerald-600" },
                         { label: "Satisfactory (50-69)", count: gradesList.filter(g => g >= 50 && g < 70).length, color: "bg-amber-500" },
                         { label: "Needs Help (0-49)", count: gradesList.filter(g => g < 50).length, color: "bg-rose-500" }
                       ].map(range => {
@@ -700,7 +700,7 @@ export default function AssignmentsView({ isInstructor, currentStudent }: Assign
 
               {/* ================= PEER FEEDBACK & REVIEWS HUB ================= */}
               <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-800 space-y-4">
-                <div className="flex items-center space-x-2 pb-1.5 border-b border-slate-100 dark:border-slate-805">
+                <div className="flex items-center space-x-2 pb-1.5 border-b border-slate-100 dark:border-slate-800">
                   <MessageSquare className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                   <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-widest font-sans">
                     Double-Blind Peer Feedback Hub
@@ -709,7 +709,7 @@ export default function AssignmentsView({ isInstructor, currentStudent }: Assign
 
                 {/* Student-specific checks: must have uploaded to read/write */}
                 {!isInstructor && !submissions.some(s => s.assignmentId === activeAssignment.id && s.studentId === currentStudent.id) ? (
-                  <div className="bg-amber-500/10 border border-amber-500/35 text-amber-905 dark:text-amber-200 p-4 rounded-xl text-xs font-bold leading-relaxed font-sans shadow-3xs">
+                  <div className="bg-amber-500/10 border border-amber-500/35 text-amber-900 dark:text-amber-200 p-4 rounded-xl text-xs font-bold leading-relaxed font-sans shadow-3xs">
                     🔒 Academic Honor Constraint: You must submit your own homework draft first before you can review drafts of your classmates or see comments on your work. This ensures mutual feedback fairness inside the {activeAssignment.title} framework.
                   </div>
                 ) : (
@@ -726,7 +726,7 @@ export default function AssignmentsView({ isInstructor, currentStudent }: Assign
                           handleAddPeerFeedback(targetSelect.value, currentStudent.id, currentStudent.name, targetText.value);
                           targetText.value = "";
                         }}
-                        className="bg-slate-50 dark:bg-slate-950 p-4 border border-slate-200 dark:border-slate-805 rounded-xl space-y-3"
+                        className="bg-slate-50 dark:bg-slate-950 p-4 border border-slate-200 dark:border-slate-800 rounded-xl space-y-3"
                       >
                         <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide font-sans">Write Classmate Review</h4>
                         
@@ -758,7 +758,7 @@ export default function AssignmentsView({ isInstructor, currentStudent }: Assign
                                 required
                                 rows={2}
                                 placeholder="Leave concrete revision ideas, methodology checks, department citations review..."
-                                className="w-full text-xs bg-white dark:bg-slate-905 border border-slate-200 dark:border-slate-700 p-2.5 rounded-md focus:outline-none focus:border-indigo-650 text-slate-800 dark:text-slate-100"
+                                className="w-full text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2.5 rounded-md focus:outline-none focus:border-indigo-650 text-slate-800 dark:text-slate-100"
                               />
                             </div>
 
@@ -792,7 +792,7 @@ export default function AssignmentsView({ isInstructor, currentStudent }: Assign
                         });
 
                         if (relevantFeedbacks.length === 0) {
-                          return <p className="text-xs text-slate-550 dark:text-slate-400 italic text-center py-4 bg-slate-50 dark:bg-slate-950 border border-dashed border-slate-205 dark:border-slate-800 rounded-lg">No peer critiques cataloged yet for this assignment slot.</p>;
+                          return <p className="text-xs text-slate-500 dark:text-slate-400 italic text-center py-4 bg-slate-50 dark:bg-slate-950 border border-dashed border-slate-200 dark:border-slate-800 rounded-lg">No peer critiques cataloged yet for this assignment slot.</p>;
                         }
 
                         return (
@@ -802,7 +802,7 @@ export default function AssignmentsView({ isInstructor, currentStudent }: Assign
                               const isAuthoredByMe = f.reviewerStudentId === currentStudent.id;
                               
                               return (
-                                <div key={f.id} className="bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-slate-805 rounded-xl p-3.5 space-y-2.5">
+                                <div key={f.id} className="bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800 rounded-xl p-3.5 space-y-2.5">
                                   <div className="flex justify-between items-center text-[10px] font-semibold text-slate-400 font-mono">
                                     <span>
                                       {isAuthoredByMe ? "✍️ Review you submitted on classmates" : "🔍 Blind Review received from classmates"}

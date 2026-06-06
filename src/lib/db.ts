@@ -3,12 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Student, Attendance, Assignment, Submission, Material, Message, Survey, SurveyResponse, Reflection, ResearchProfile, PeerFeedback, WorkspaceNote } from "../types";
+import { Student, Attendance, Assignment, Submission, Material, Message, Survey, SurveyResponse, Reflection, ResearchProfile, PeerFeedback, WorkspaceNote, FeedbackTemplate, AnonymousFeedback, AutomatedBackup } from "../types";
 import { 
   SEED_STUDENTS, SEED_ASSIGNMENTS, SEED_SUBMISSIONS, SEED_MATERIALS, 
   SEED_SURVEYS, SEED_REFLECTIONS, SEED_RESEARCH_PROFILES, SEED_MESSAGES, SEED_ATTENDANCE 
 } from "./mockData";
-import { db, isPlaceholderFirebase, handleFirestoreError, OperationType } from "./firebase";
+import { db, auth, isPlaceholderFirebase, handleFirestoreError, OperationType } from "./firebase";
 import { collection, doc, setDoc, getDocs, updateDoc, deleteDoc, writeBatch } from "firebase/firestore";
 
 // Local storage key prefixes
@@ -38,11 +38,24 @@ export class DBManager {
       window.addEventListener("online", () => this.handleNetworkChange(true));
       window.addEventListener("offline", () => this.handleNetworkChange(false));
     }
+    
+    // Listen for Firebase Auth state changes to trigger cloud sync
+    if (typeof window !== "undefined" && !isPlaceholderFirebase) {
+      auth.onAuthStateChanged((user) => {
+        if (user) {
+          console.log("Firebase Auth State Change: Authenticated as Uid", user.uid);
+          this.syncOutbox();
+          this.pullAllDataFromServer();
+        } else {
+          console.log("Firebase Auth State Change: Not authenticated");
+        }
+      });
+    }
   }
 
   private initLocalStorage() {
     // If empty, seed everything
-    const keys = ["students", "attendance", "assignments", "submissions", "materials", "messages", "surveys", "survey_responses", "reflections", "research_profiles", "peer_feedbacks", "workspace_notes"];
+    const keys = ["students", "attendance", "assignments", "submissions", "materials", "messages", "surveys", "survey_responses", "reflections", "research_profiles", "peer_feedbacks", "workspace_notes", "feedback_templates", "anonymous_feedback", "automated_backups"];
     
     // Seeds map
     const seeds: Record<string, any[]> = {
@@ -57,7 +70,63 @@ export class DBManager {
       reflections: SEED_REFLECTIONS,
       research_profiles: SEED_RESEARCH_PROFILES,
       peer_feedbacks: [],
-      workspace_notes: []
+      workspace_notes: [],
+      feedback_templates: [
+        {
+          id: "mid_sem_default",
+          title: "Mid-Semester Course Evaluation (Standard)",
+          description: "An anonymous evaluation template designed to gather constructive feedback regarding course pace, lecture structure, and clarity of concepts.",
+          questions: [
+            {
+              id: "fb_q1",
+              type: "likert",
+              label: "The pace of the lectures in this course is appropriate.",
+              options: ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"]
+            },
+            {
+              id: "fb_q2",
+              type: "mcq",
+              label: "Which area needs the most immediate adjustment or focus?",
+              options: [
+                "Lecture Pace & Progression",
+                "Clarification of Qualitative Concepts",
+                "Thesis & Research Proposal Support",
+                "Assignment Instruction Details",
+                "No adjustments needed"
+              ]
+            },
+            {
+              id: "fb_q3",
+              type: "open",
+              label: "What constructive suggestions do you have for Dr. Zerihun to improve this course?"
+            }
+          ],
+          createdAt: new Date().toISOString()
+        }
+      ],
+      anonymous_feedback: [
+        {
+          id: "seed_fb_1",
+          templateId: "mid_sem_default",
+          answers: {
+            "fb_q1": "Agree",
+            "fb_q2": "Clarification of Qualitative Concepts",
+            "fb_q3": "Dr. Zerihun is amazing. Please provide more examples of qualitative data coding sheets like ATLAS.ti. Otherwise, the pace is perfect!"
+          },
+          submittedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
+        },
+        {
+          id: "seed_fb_2",
+          templateId: "mid_sem_default",
+          answers: {
+            "fb_q1": "Disagree",
+            "fb_q2": "Lecture Pace & Progression",
+            "fb_q3": "I feel we are moving some theoretical chapters very fast. Could we slow down slightly and have small break-out sessions?"
+          },
+          submittedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
+        }
+      ],
+      automated_backups: []
     };
 
     keys.forEach(key => {
@@ -153,6 +222,10 @@ export class DBManager {
 
   public getOutboxCount(): number {
     return this.outbox.length;
+  }
+
+  public getOutbox(): SyncOperation[] {
+    return [...this.outbox];
   }
 
   // --- Core CRUD helpers ---
@@ -441,10 +514,65 @@ export class DBManager {
     this.addSyncOp("workspace_notes", note.id, "set", note);
   }
 
+  // --- Student Feedback & Mid-Semester Evaluation CRUD ---
+  public getFeedbackTemplates(): FeedbackTemplate[] {
+    return this.memoryCache["feedback_templates"] || [];
+  }
+
+  public addFeedbackTemplate(template: FeedbackTemplate) {
+    const list = this.getFeedbackTemplates();
+    this.memoryCache["feedback_templates"] = [template, ...list.filter(t => t.id !== template.id)];
+    this.saveToLocalStorage("feedback_templates");
+    this.addSyncOp("feedback_templates", template.id, "set", template);
+    this.triggerAutomatedBackup(`Created survey template: ${template.title}`);
+  }
+
+  public getAnonymousFeedback(): AnonymousFeedback[] {
+    return this.memoryCache["anonymous_feedback"] || [];
+  }
+
+  public addAnonymousFeedback(feedback: AnonymousFeedback) {
+    const list = this.getAnonymousFeedback();
+    this.memoryCache["anonymous_feedback"] = [feedback, ...list];
+    this.saveToLocalStorage("anonymous_feedback");
+    this.addSyncOp("anonymous_feedback", feedback.id, "set", feedback);
+    this.triggerAutomatedBackup("Anonymous student feedback submission");
+  }
+
+  // --- Automated Backups CRUD ---
+  public getAutomatedBackups(): AutomatedBackup[] {
+    return this.memoryCache["automated_backups"] || [];
+  }
+
+  public triggerAutomatedBackup(event: string) {
+    const backupJson = this.exportBackup();
+    const keys = ["students", "attendance", "assignments", "submissions", "materials", "messages", "surveys", "survey_responses", "reflections", "research_profiles", "workspace_notes", "feedback_templates", "anonymous_feedback"];
+    
+    const recordCounts: Record<string, number> = {};
+    keys.forEach(key => {
+      recordCounts[key] = (this.memoryCache[key] || []).length;
+    });
+
+    const newBackup: AutomatedBackup = {
+      id: "auto_bk_" + Math.random().toString(36).substring(2, 9),
+      timestamp: new Date().toISOString(),
+      triggerEvent: event,
+      dataSize: backupJson.length,
+      recordCounts,
+      jsonData: backupJson
+    };
+
+    const backups = this.getAutomatedBackups();
+    // Keep last 15 automated backups to prevent storage saturation
+    const trimmed = [newBackup, ...backups].slice(0, 15);
+    this.memoryCache["automated_backups"] = trimmed;
+    this.saveToLocalStorage("automated_backups");
+  }
+
   // --- Data Backup (Export / Import) ---
   public exportBackup(): string {
     const backupData: Record<string, any[]> = {};
-    const keys = ["students", "attendance", "assignments", "submissions", "materials", "messages", "surveys", "survey_responses", "reflections", "research_profiles", "peer_feedbacks", "workspace_notes"];
+    const keys = ["students", "attendance", "assignments", "submissions", "materials", "messages", "surveys", "survey_responses", "reflections", "research_profiles", "peer_feedbacks", "workspace_notes", "feedback_templates", "anonymous_feedback", "automated_backups"];
     keys.forEach(key => {
       backupData[key] = this.memoryCache[key] || [];
     });
@@ -461,7 +589,7 @@ export class DBManager {
       if (!parsed || typeof parsed !== "object" || !parsed.data) {
         return false;
       }
-      const keys = ["students", "attendance", "assignments", "submissions", "materials", "messages", "surveys", "survey_responses", "reflections", "research_profiles", "peer_feedbacks", "workspace_notes"];
+      const keys = ["students", "attendance", "assignments", "submissions", "materials", "messages", "surveys", "survey_responses", "reflections", "research_profiles", "peer_feedbacks", "workspace_notes", "feedback_templates", "anonymous_feedback", "automated_backups"];
       const backupData = parsed.data;
       
       // Basic validation: must contain array records for students and assignments
@@ -484,7 +612,7 @@ export class DBManager {
   }
 
   public clearAllDataAndReset() {
-    const keys = ["students", "attendance", "assignments", "submissions", "materials", "messages", "surveys", "survey_responses", "reflections", "research_profiles", "sync_outbox", "peer_feedbacks", "workspace_notes"];
+    const keys = ["students", "attendance", "assignments", "submissions", "materials", "messages", "surveys", "survey_responses", "reflections", "research_profiles", "sync_outbox", "peer_feedbacks", "workspace_notes", "feedback_templates", "anonymous_feedback", "automated_backups"];
     keys.forEach(key => {
       localStorage.removeItem(STORAGE_PREFIX + key);
     });

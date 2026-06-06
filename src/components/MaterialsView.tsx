@@ -447,13 +447,13 @@ export default function MaterialsView({ isInstructor }: MaterialsProps) {
       {isUploading ? (
         !isBulkImporting ? (
           /* ================= SINGLE FILE UPLOAD CONTEXT ================= */
-          <div className="bg-white border border-slate-200 rounded-xl p-6 max-w-xl shadow-md">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3 mb-5">
-              <h3 className="text-sm font-bold text-slate-900 uppercase">Publish Study Materials</h3>
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-805 rounded-xl p-6 max-w-xl shadow-md">
+            <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3 mb-5">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase">Publish Study Materials</h3>
               <button
                 id="btn-close-upload"
                 onClick={() => setIsUploading(false)} 
-                className="text-xs font-mono font-bold text-slate-500 hover:text-slate-900"
+                className="text-xs font-mono font-bold text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer"
               >
                 ✕ Cancel
               </button>
@@ -461,7 +461,7 @@ export default function MaterialsView({ isInstructor }: MaterialsProps) {
 
             <form onSubmit={handleUploadSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-slate-650 uppercase tracking-wider mb-2">Resource Title</label>
+                <label className="block text-xs font-bold text-slate-650 dark:text-slate-350 uppercase tracking-wider mb-2">Resource Title</label>
                 <input
                   id="material-title"
                   type="text"
@@ -469,32 +469,32 @@ export default function MaterialsView({ isInstructor }: MaterialsProps) {
                   placeholder="e.g. Chapter 3: Qualitative Design Structures"
                   value={uploadTitle}
                   onChange={e => setUploadTitle(e.target.value)}
-                  className="w-full text-sm border border-slate-200 rounded-md px-3 py-2 bg-white text-slate-900 focus:outline-none focus:border-indigo-600"
+                  className="w-full text-sm border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 dark:focus:border-indigo-400 font-medium"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-650 uppercase tracking-wider mb-2">Description / Summary</label>
+                <label className="block text-xs font-bold text-slate-650 dark:text-slate-350 uppercase tracking-wider mb-2">Description / Summary</label>
                 <textarea
                   id="material-desc"
                   rows={3}
                   placeholder="Define study units or relevant lecture chapters..."
                   value={uploadDesc}
                   onChange={e => setUploadDesc(e.target.value)}
-                  className="w-full text-sm border border-slate-200 rounded-md px-3 py-2 bg-white text-slate-900 focus:outline-none focus:border-indigo-600"
+                  className="w-full text-sm border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 dark:focus:border-indigo-400"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-650 uppercase tracking-wider mb-2">Document File Upload</label>
-                <div className="border border-slate-200 p-4 rounded-xl bg-slate-50/50">
+                <label className="block text-xs font-bold text-slate-650 dark:text-slate-350 uppercase tracking-wider mb-2">Document File Upload</label>
+                <div className="border border-slate-200 dark:border-slate-800 p-4 rounded-xl bg-slate-50/50 dark:bg-slate-955/40">
                   <input
                     id="material-file-picker"
                     type="file"
                     onChange={handleFileSelection}
-                    className="text-xs text-slate-500 w-full"
+                    className="text-xs text-slate-600 dark:text-slate-300 w-full cursor-pointer font-medium file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-bold file:bg-indigo-50 dark:file:bg-indigo-950 file:text-indigo-705 dark:file:text-indigo-300"
                   />
-                  <p className="text-[10px] text-slate-400 mt-2 font-mono">Accepted format: PDF, DOCX, PPTX (Local caching resolves storage issues)</p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-2 font-mono">Accepted format: PDF, DOCX, PPTX (Local caching resolves storage issues)</p>
                 </div>
               </div>
 
@@ -568,7 +568,7 @@ export default function MaterialsView({ isInstructor }: MaterialsProps) {
                   Select multiple files from your computer (PDF, DOCX, PPTX). The Course Companion will read them in parallel, assigning capitalized titles from the file names instantly.
                 </p>
 
-                <div className="border-2 border-dashed border-slate-300 bg-slate-50 p-6 rounded-xl text-center hover:bg-slate-100/50 transition cursor-pointer relative">
+                <div className="border-2 border-dashed border-slate-300 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 p-6 rounded-xl text-center hover:bg-slate-100/50 dark:hover:bg-slate-900/40 transition cursor-pointer relative">
                   <input
                     type="file"
                     multiple
@@ -576,8 +576,8 @@ export default function MaterialsView({ isInstructor }: MaterialsProps) {
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   />
                   <Files className="mx-auto h-8 w-8 text-indigo-500 mb-2" />
-                  <span className="block text-xs font-bold text-slate-800">Drag or Click to Choose Multiple Documents</span>
-                  <span className="block text-[10px] text-slate-450 font-mono mt-1">Unlimited items. Max 1.2MB recommended per file.</span>
+                  <span className="block text-xs font-bold text-slate-800 dark:text-slate-200">Drag or Click to Choose Multiple Documents</span>
+                  <span className="block text-[10px] text-slate-450 dark:text-slate-500 font-mono mt-1">Unlimited items. Max 1.2MB recommended per file.</span>
                 </div>
 
                 {bulkQueue.length > 0 && (
@@ -615,14 +615,14 @@ export default function MaterialsView({ isInstructor }: MaterialsProps) {
                                 required
                                 placeholder="Edit title for this resource"
                                 onChange={e => updateQueueItem(item.id, { title: e.target.value })}
-                                className="w-full text-xs font-bold border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-indigo-650"
+                                className="w-full text-xs font-bold border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white rounded px-2 py-1 focus:outline-none focus:border-indigo-650 dark:focus:border-indigo-400"
                               />
                               <input
                                 type="text"
                                 value={item.description}
                                 placeholder="Add summary/chapter info"
                                 onChange={e => updateQueueItem(item.id, { description: e.target.value })}
-                                className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-indigo-650"
+                                className="w-full text-xs border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white rounded px-2 py-1 focus:outline-none focus:border-indigo-650 dark:focus:border-indigo-400"
                               />
                             </div>
                           </div>

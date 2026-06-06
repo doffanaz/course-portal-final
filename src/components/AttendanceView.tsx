@@ -363,13 +363,13 @@ export default function AttendanceView({ isInstructor, currentStudent }: Attenda
                 <p className="text-xs text-slate-500 font-medium">Record daily lectures presence or absence metrics</p>
               </div>
               <div className="flex items-center space-x-2">
-                <Calendar className="h-4 w-4 text-slate-500" />
+                <Calendar className="h-4 w-4 text-slate-500 dark:text-slate-400" />
                 <input
                   id="attendance-date-selector"
                   type="date"
                   value={selectedDate}
                   onChange={e => setSelectedDate(e.target.value)}
-                  className="text-xs font-mono border border-slate-200 rounded-md px-3 py-1.5 focus:outline-none focus:border-indigo-600"
+                  className="text-xs font-mono border border-slate-200 dark:border-slate-800 rounded-md px-3 py-1.5 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 dark:focus:border-indigo-400 font-medium"
                 />
               </div>
             </div>
@@ -406,7 +406,7 @@ export default function AttendanceView({ isInstructor, currentStudent }: Attenda
                           <button
                             id={`btn-l-${s.id}`}
                             onClick={() => setStatus(s.id, "late")}
-                            className={`p-1.5 rounded-full transition ${status === "late" ? "bg-amber-100 text-amber-805" : "bg-slate-100 text-slate-400 hover:bg-slate-200"}`}
+                            className={`p-1.5 rounded-full transition ${status === "late" ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-400 hover:bg-slate-200"}`}
                           >
                             <Clock className="h-4 w-4 mx-auto" />
                           </button>
@@ -415,7 +415,7 @@ export default function AttendanceView({ isInstructor, currentStudent }: Attenda
                           <button
                             id={`btn-a-${s.id}`}
                             onClick={() => setStatus(s.id, "absent")}
-                            className={`p-1.5 rounded-full transition ${status === "absent" ? "bg-rose-105 text-rose-800" : "bg-slate-100 text-slate-400 hover:bg-slate-200"}`}
+                            className={`p-1.5 rounded-full transition ${status === "absent" ? "bg-rose-100 text-rose-800" : "bg-slate-100 text-slate-400 hover:bg-slate-200"}`}
                           >
                             <X className="h-4 w-4 mx-auto" />
                           </button>
@@ -665,13 +665,13 @@ export default function AttendanceView({ isInstructor, currentStudent }: Attenda
                     </div>
 
                     {/* Method B: Manual Passcode Code */}
-                    <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-3 shadow-3xs flex flex-col justify-between">
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-4 space-y-3 shadow-3xs flex flex-col justify-between">
                       <div className="space-y-1">
-                        <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest flex items-center space-x-1.5 font-sans">
+                        <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-widest flex items-center space-x-1.5 font-sans">
                           <Clock className="h-4 w-4 text-amber-500 font-bold" />
                           <span>Method B: 4-Digit Passcode</span>
                         </h4>
-                        <p className="text-[10px] text-slate-500 font-medium">Enter the 4-digit code displayed below the active QR ticket.</p>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-450 font-medium">Enter the 4-digit code displayed below the active QR ticket.</p>
                       </div>
 
                       <div className="space-y-2.5">
@@ -681,7 +681,7 @@ export default function AttendanceView({ isInstructor, currentStudent }: Attenda
                           placeholder="e.g. 5283"
                           value={manualPasscode}
                           onChange={e => setManualPasscode(e.target.value.replace(/\D/g, ""))}
-                          className="w-full text-center tracking-widest text-lg font-black font-mono border border-slate-200 focus:border-indigo-600 rounded-md p-2 uppercase bg-slate-50 text-slate-900 focus:outline-none"
+                          className="w-full text-center tracking-widest text-lg font-black font-mono border border-slate-200 dark:border-slate-800 focus:border-indigo-600 dark:focus:border-indigo-400 rounded-md p-2 uppercase bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none"
                         />
                         <button
                           type="button"
@@ -750,8 +750,8 @@ export default function AttendanceView({ isInstructor, currentStudent }: Attenda
                       <p className="text-2xl font-black font-mono text-emerald-800">{present}</p>
                       <p className="text-[10px] text-slate-500 font-mono uppercase tracking-wider mt-1">Present Log</p>
                     </div>
-                    <div className="bg-amber-55 border border-amber-100 rounded-xl p-4 text-center shadow-xs">
-                      <p className="text-2xl font-black font-mono text-amber-805">{late}</p>
+                    <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-center shadow-xs">
+                      <p className="text-2xl font-black font-mono text-amber-800">{late}</p>
                       <p className="text-[10px] text-slate-500 font-mono uppercase tracking-wider mt-1">Late Roster</p>
                     </div>
                     <div className="bg-rose-50 border border-rose-100 rounded-xl p-4 text-center shadow-xs">

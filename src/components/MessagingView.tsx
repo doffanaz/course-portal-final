@@ -148,19 +148,19 @@ export default function MessagingView({ isInstructor, currentStudent }: Messagin
         </div>
 
         {/* Input Text Form */}
-        <form onSubmit={handleSendMessage} className="border-t border-slate-150 pt-4 space-y-3">
+        <form onSubmit={handleSendMessage} className="border-t border-slate-150 dark:border-slate-800 pt-4 space-y-3">
           {isInstructor && (
             <div className="flex items-center space-x-3 text-xs mb-1">
-              <span className="font-semibold text-slate-750">Send To:</span>
+              <span className="font-semibold text-slate-750 dark:text-slate-300">Send To:</span>
               <select
                 id="message-recipient"
                 value={recipientId}
                 onChange={e => setRecipientId(e.target.value)}
-                className="border border-slate-200 text-xs rounded-md px-2.5 py-1.5 focus:outline-none focus:border-indigo-600 font-medium"
+                className="border border-slate-200 dark:border-slate-805 text-xs rounded-md px-2.5 py-1.5 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 dark:focus:border-indigo-400 font-medium"
               >
-                <option value="all">📢 ALL Registered Students (Broadcast)</option>
+                <option value="all" className="dark:bg-slate-900 text-slate-900 dark:text-white">📢 ALL Registered Students (Broadcast)</option>
                 {students.map(s => (
-                  <option key={s.id} value={s.id}>👤 {s.name}</option>
+                  <option key={s.id} value={s.id} className="dark:bg-slate-900 text-slate-900 dark:text-white">👤 {s.name}</option>
                 ))}
               </select>
             </div>
@@ -174,12 +174,12 @@ export default function MessagingView({ isInstructor, currentStudent }: Messagin
               placeholder={isInstructor ? "Compose bulletin message..." : "Ask your professor an academic question..."}
               value={draftContent}
               onChange={e => setDraftContent(e.target.value)}
-              className="flex-1 text-sm border border-slate-200 rounded-md px-3 py-2 bg-white text-slate-900 focus:outline-none focus:border-indigo-600 font-sans"
+              className="flex-1 text-sm border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 dark:focus:border-indigo-400 font-sans font-medium"
             />
             <button
               id="btn-dispatch-message"
               type="submit"
-              className="bg-indigo-600 text-white hover:bg-indigo-700 p-2.5 rounded-md transition shadow-sm font-semibold"
+              className="bg-indigo-600 text-white hover:bg-indigo-700 p-2.5 rounded-md transition shadow-sm font-semibold cursor-pointer"
               title="Dispatch Message"
             >
               <Send className="h-4 w-4" />

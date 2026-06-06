@@ -39,6 +39,30 @@ export default function StudentProfileView({ currentStudent, onProfileUpdated, i
   const [researchForm, setResearchForm] = useState<ResearchProfile>({ ...targetResearch });
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
 
+  const getStageIndex = (stageStr: string = "") => {
+    const lower = stageStr.toLowerCase();
+    if (lower.includes("topic")) return 0;
+    if (lower.includes("orientation") || lower.includes("induction")) return 1;
+    if (lower.includes("concept")) return 2;
+    if (lower.includes("proposal")) return 3;
+    if (lower.includes("tools") || lower.includes("approval")) return 4;
+    if (lower.includes("field") || lower.includes("collection")) return 5;
+    if (lower.includes("analysis") || lower.includes("write")) return 6;
+    if (lower.includes("completed") || lower.includes("defended")) return 7;
+    return 0;
+  };
+
+  const STAGES = [
+    { label: "1. Topic Approved", desc: "Original qualitative research question finalized" },
+    { label: "2. Orientation", desc: "Qualitative research method & software introductory briefing" },
+    { label: "3. Concept Note", desc: "Brief statement of background methodology and goals" },
+    { label: "4. Full Proposal", desc: "Formal proposal presentation defend check-in" },
+    { label: "5. Tools Design", desc: "Design interview protocols & FGD guidelines" },
+    { label: "6. Field Work", desc: "Active offline data collection, interviews & field notes" },
+    { label: "7. Data Analysis", desc: "NVivo/Atlas.ti node categorization & thematic code matrix" },
+    { label: "8. Completed & Defended", desc: "Full thesis compiled, reviewed, and finalized green" }
+  ];
+
   // New Student Registry Form States
   const [isAddingStudent, setIsAddingStudent] = useState(false);
   const [importType, setImportType] = useState<"manual" | "bulk">("manual");
@@ -496,15 +520,15 @@ export default function StudentProfileView({ currentStudent, onProfileUpdated, i
 
       {/* Instructor Dashboard Controls */}
       {isInstructor && (
-        <div className="lg:col-span-12 bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 shadow-3xs" id="instructor-registry-controls">
+        <div className="lg:col-span-12 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 shadow-3xs" id="instructor-registry-controls">
           <div className="flex items-center space-x-3">
-            <div className="p-2.5 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-xl">
+            <div className="p-2.5 bg-indigo-100 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-900/50 text-indigo-700 dark:text-indigo-400 rounded-xl">
               <UserPlus className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Academic Registry Panel</h3>
-              <p className="text-[11px] text-slate-500 font-medium">
-                Administer course roster. Currently supporting <span className="font-bold text-indigo-700">{students.length} active researchers</span>.
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Academic Registry Panel</h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                Administer course roster. Currently supporting <span className="font-black text-indigo-605 dark:text-indigo-400">{students.length} active researchers</span>.
               </p>
             </div>
           </div>
@@ -546,19 +570,19 @@ export default function StudentProfileView({ currentStudent, onProfileUpdated, i
 
       {/* Add New Student Registry Form */}
       {isInstructor && isAddingStudent && (
-        <div className="lg:col-span-12 bg-white border-2 border-indigo-250 rounded-xl p-6 shadow-sm animate-fade-in" id="form-add-student-wizard">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-5">
+        <div className="lg:col-span-12 bg-white dark:bg-slate-900 border-2 border-indigo-250 dark:border-indigo-950 rounded-xl p-6 shadow-sm animate-fade-in" id="form-add-student-wizard">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 mb-5">
             <div className="flex items-center space-x-2">
-              <UserPlus className="h-5 w-5 text-indigo-600" />
+              <UserPlus className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
               <div>
-                <h4 className="text-md font-bold text-slate-900">New Student & Dissertation Registration</h4>
-                <p className="text-xs text-slate-550 font-medium">Formulate credentials and thesis milestone records offline and online</p>
+                <h4 className="text-md font-bold text-slate-900 dark:text-white">New Student & Dissertation Registration</h4>
+                <p className="text-xs text-slate-550 dark:text-slate-400 font-medium">Formulate credentials and thesis milestone records offline and online</p>
               </div>
             </div>
             <button 
               type="button" 
               onClick={() => setIsAddingStudent(false)} 
-              className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded"
+              className="p-1 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800 rounded"
               id="btn-close-wizard"
             >
               <X className="h-4 w-4" />
@@ -566,15 +590,15 @@ export default function StudentProfileView({ currentStudent, onProfileUpdated, i
           </div>
 
           {/* Tab Selector */}
-          <div className="flex border-b border-slate-200 mb-6">
+          <div className="flex border-b border-slate-200 dark:border-slate-800 mb-6">
             <button
               type="button"
               id="tab-import-manual"
               onClick={() => setImportType("manual")}
               className={`py-2.5 px-4 text-xs font-bold uppercase tracking-wider border-b-2 transition ${
                 importType === "manual"
-                  ? "border-indigo-600 text-indigo-700 font-extrabold"
-                  : "border-transparent text-slate-500 hover:text-slate-700"
+                  ? "border-indigo-600 dark:border-indigo-450 text-indigo-700 dark:text-indigo-400 font-extrabold"
+                  : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
               }`}
             >
               Manual Form Entry
@@ -585,8 +609,8 @@ export default function StudentProfileView({ currentStudent, onProfileUpdated, i
               onClick={() => setImportType("bulk")}
               className={`py-2.5 px-4 text-xs font-bold uppercase tracking-wider border-b-2 transition ${
                 importType === "bulk"
-                  ? "border-indigo-600 text-indigo-700 font-extrabold"
-                  : "border-transparent text-slate-500 hover:text-slate-700"
+                  ? "border-indigo-600 dark:border-indigo-450 text-indigo-700 dark:text-indigo-400 font-extrabold"
+                  : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
               }`}
             >
               Bulk Spreadsheet Importer (CSV)
@@ -599,9 +623,9 @@ export default function StudentProfileView({ currentStudent, onProfileUpdated, i
               
               {/* Column 1 */}
               <div className="space-y-4">
-                <h5 className="text-[10px] uppercase font-bold text-indigo-705 tracking-wider font-mono">A. Identity Details</h5>
+                <h5 className="text-[10px] uppercase font-bold text-indigo-705 dark:text-indigo-400 tracking-wider font-mono">A. Identity Details</h5>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Full Name *</label>
+                  <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-405 uppercase tracking-wider mb-1">Full Name *</label>
                   <input
                     id="new-student-name"
                     type="text"
@@ -609,26 +633,26 @@ export default function StudentProfileView({ currentStudent, onProfileUpdated, i
                     placeholder="Enter student's full name"
                     value={newStudentForm.name}
                     onChange={e => setNewStudentForm({ ...newStudentForm, name: e.target.value })}
-                    className="w-full text-xs border border-slate-200 rounded-md px-3 py-2 bg-white text-slate-900 focus:outline-none focus:border-indigo-600 font-medium"
+                    className="w-full text-xs border border-slate-200 dark:border-slate-805 rounded-md px-3 py-2 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 font-medium"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Gender</label>
+                  <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-405 uppercase tracking-wider mb-1">Gender</label>
                   <select
                     id="new-student-gender"
                     value={newStudentForm.gender}
                     onChange={e => setNewStudentForm({ ...newStudentForm, gender: e.target.value as any })}
-                    className="w-full text-xs border border-slate-200 rounded-md px-3 py-2 bg-white text-slate-900 focus:outline-none focus:border-indigo-600 font-medium"
+                    className="w-full text-xs border border-slate-200 dark:border-slate-805 rounded-md px-3 py-2 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 font-medium"
                   >
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
+                    <option value="Male" className="dark:bg-slate-900">Male</option>
+                    <option value="Female" className="dark:bg-slate-900">Female</option>
+                    <option value="Other" className="dark:bg-slate-900">Other</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Email Address *</label>
+                  <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-405 uppercase tracking-wider mb-1">Email Address *</label>
                   <input
                     id="new-student-email"
                     type="email"
@@ -636,59 +660,59 @@ export default function StudentProfileView({ currentStudent, onProfileUpdated, i
                     placeholder="academic.email@domain.com"
                     value={newStudentForm.email}
                     onChange={e => setNewStudentForm({ ...newStudentForm, email: e.target.value })}
-                    className="w-full text-xs border border-slate-200 rounded-md px-3 py-2 bg-white text-slate-900 focus:outline-none focus:border-indigo-600 font-medium"
+                    className="w-full text-xs border border-slate-200 dark:border-slate-805 rounded-md px-3 py-2 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 font-medium"
                   />
                 </div>
               </div>
 
               {/* Column 2 */}
               <div className="space-y-4">
-                <h5 className="text-[10px] uppercase font-bold text-indigo-705 tracking-wider font-mono">B. Academic & Institutional</h5>
+                <h5 className="text-[10px] uppercase font-bold text-indigo-705 dark:text-indigo-400 tracking-wider font-mono">B. Academic & Institutional</h5>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Mobile Number</label>
+                  <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-405 uppercase tracking-wider mb-1">Mobile Number</label>
                   <input
                     id="new-student-mobile"
                     type="tel"
                     placeholder="+251 9..."
                     value={newStudentForm.mobile}
                     onChange={e => setNewStudentForm({ ...newStudentForm, mobile: e.target.value })}
-                    className="w-full text-xs border border-slate-200 rounded-md px-3 py-2 bg-white text-slate-900 focus:outline-none focus:border-indigo-600 font-medium"
+                    className="w-full text-xs border border-slate-200 dark:border-slate-805 rounded-md px-3 py-2 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 font-medium"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Current Position</label>
+                  <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-405 uppercase tracking-wider mb-1">Current Position</label>
                   <input
                     id="new-student-position"
                     type="text"
                     placeholder="e.g. Year 1 Graduate, PhD Scholar"
                     value={newStudentForm.currentPosition}
                     onChange={e => setNewStudentForm({ ...newStudentForm, currentPosition: e.target.value })}
-                    className="w-full text-xs border border-slate-200 rounded-md px-3 py-2 bg-white text-slate-900 focus:outline-none focus:border-indigo-600 font-medium"
+                    className="w-full text-xs border border-slate-200 dark:border-slate-805 rounded-md px-3 py-2 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 font-medium"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Institution</label>
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-405 uppercase tracking-wider mb-1">Institution</label>
                     <input
                       id="new-student-institution"
                       type="text"
                       placeholder="e.g. EPU"
                       value={newStudentForm.institution}
                       onChange={e => setNewStudentForm({ ...newStudentForm, institution: e.target.value })}
-                      className="w-full text-[11px] border border-slate-200 rounded-md px-2 py-1.5 bg-white text-slate-900 focus:outline-none focus:border-indigo-600 font-medium"
+                      className="w-full text-[11px] border border-slate-200 dark:border-slate-805 rounded-md px-2 py-1.5 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 font-medium"
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Department</label>
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-405 uppercase tracking-wider mb-1">Department</label>
                     <input
                       id="new-student-department"
                       type="text"
                       placeholder="e.g. Police Science"
                       value={newStudentForm.department}
                       onChange={e => setNewStudentForm({ ...newStudentForm, department: e.target.value })}
-                      className="w-full text-[11px] border border-slate-200 rounded-md px-2 py-1.5 bg-white text-slate-900 focus:outline-none focus:border-indigo-600 font-medium"
+                      className="w-full text-[11px] border border-slate-200 dark:border-slate-805 rounded-md px-2 py-1.5 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 font-medium"
                     />
                   </div>
                 </div>
@@ -696,40 +720,40 @@ export default function StudentProfileView({ currentStudent, onProfileUpdated, i
 
               {/* Column 3 */}
               <div className="space-y-4">
-                <h5 className="text-[10px] uppercase font-bold text-indigo-705 tracking-wider font-mono">C. Thesis Topic Staging</h5>
+                <h5 className="text-[10px] uppercase font-bold text-indigo-705 dark:text-indigo-400 tracking-wider font-mono">C. Thesis Topic Staging</h5>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Initial Research Topic</label>
+                  <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-405 uppercase tracking-wider mb-1">Initial Research Topic</label>
                   <input
                     id="new-student-topic"
                     type="text"
                     placeholder="Proposed topic or interest theme"
                     value={newStudentForm.thesisTopic}
                     onChange={e => setNewStudentForm({ ...newStudentForm, thesisTopic: e.target.value })}
-                    className="w-full text-xs border border-slate-200 rounded-md px-3 py-2 bg-white text-slate-900 focus:outline-none focus:border-indigo-600 font-medium"
+                    className="w-full text-xs border border-slate-200 dark:border-slate-805 rounded-md px-3 py-2 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 font-medium"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Methodological Intent</label>
+                  <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-405 uppercase tracking-wider mb-1">Methodological Intent</label>
                   <input
                     id="new-student-methodology"
                     type="text"
                     placeholder="e.g. Grounded Theory, Mixed Methodology"
                     value={newStudentForm.thesisMethodology}
                     onChange={e => setNewStudentForm({ ...newStudentForm, thesisMethodology: e.target.value })}
-                    className="w-full text-xs border border-slate-200 rounded-md px-3 py-2 bg-white text-slate-900 focus:outline-none focus:border-indigo-600 font-medium"
+                    className="w-full text-xs border border-slate-200 dark:border-slate-805 rounded-md px-3 py-2 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 font-medium"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Previous Qualifications</label>
+                  <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-405 uppercase tracking-wider mb-1">Previous Qualifications</label>
                   <input
                     id="new-student-degrees"
                     type="text"
                     placeholder="e.g. BSc Criminology"
                     value={newStudentForm.previousDegrees}
                     onChange={e => setNewStudentForm({ ...newStudentForm, previousDegrees: e.target.value })}
-                    className="w-full text-xs border border-slate-200 rounded-md px-3 py-2 bg-white text-slate-900 focus:outline-none focus:border-indigo-600 font-medium"
+                    className="w-full text-xs border border-slate-200 dark:border-slate-805 rounded-md px-3 py-2 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 font-medium"
                   />
                 </div>
               </div>
@@ -760,17 +784,17 @@ export default function StudentProfileView({ currentStudent, onProfileUpdated, i
           </form>
           ) : (
             <div className="space-y-5 animate-fade-in">
-              <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl text-xs space-y-3">
-                <h5 className="font-bold text-slate-800 uppercase tracking-wide">Excel / CSV Spreadsheet Schema Guide:</h5>
-                <p className="text-slate-600 leading-relaxed">
+              <div className="bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-805 p-4 rounded-xl text-xs space-y-3">
+                <h5 className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide">Excel / CSV Spreadsheet Schema Guide:</h5>
+                <p className="text-slate-600 dark:text-slate-405 leading-relaxed">
                   Your files inside spreadsheet programs (Microsoft Excel, Numbers, Google Sheets) should have a first-row column headers line.
                   The system will automatically auto-detect the headers format!
                 </p>
                 
-                <div className="bg-slate-900 text-slate-100 p-3 rounded font-mono text-[10px] space-y-1">
-                  <p className="text-slate-400 font-bold"># Recommended column headers configuration:</p>
-                  <p className="text-emerald-400 font-bold select-all">Name, Email, Gender, Mobile, Institution, Department, Position, Degrees, Interests, Topic, Methodology</p>
-                  <p className="text-slate-400 font-bold mt-2"># Dummy Sample Rows:</p>
+                <div className="bg-slate-900 dark:bg-slate-950 text-slate-100 dark:text-slate-200 p-3 rounded font-mono text-[10px] space-y-1">
+                  <p className="text-slate-400 dark:text-slate-500 font-bold"># Recommended column headers configuration:</p>
+                  <p className="text-emerald-400 dark:text-emerald-500 font-bold select-all">Name, Email, Gender, Mobile, Institution, Department, Position, Degrees, Interests, Topic, Methodology</p>
+                  <p className="text-slate-400 dark:text-slate-500 font-bold mt-2"># Dummy Sample Rows:</p>
                   <p>Abebe Kebede, abebe@EP-univ.edu, Male, +251911223344, Ethiopian Police University, Crime Prevention, Year 1, BSc Police, Crime logs, Crime analysis, Qualitative methods</p>
                   <p>Chaltu Demeke, chaltu@EP-univ.edu, Female, +251922334455, Ethiopian Police University, Crime Prevention, Year 1, LLB Law, Cyber Crime mitigation, Security analysis, BigData mining</p>
                 </div>
@@ -782,7 +806,7 @@ export default function StudentProfileView({ currentStudent, onProfileUpdated, i
                 onDragLeave={handleBulkCSVDragLeave}
                 onDrop={handleBulkCSVDrop}
                 className={`border-2 border-dashed rounded-xl p-8 text-center transition ${
-                  bulkDragging ? "bg-indigo-50 border-indigo-600" : "border-slate-300 hover:bg-slate-50"
+                  bulkDragging ? "bg-indigo-50 dark:bg-indigo-950/40 border-indigo-600 dark:border-indigo-550" : "border-slate-300 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/40"
                 }`}
               >
                 <input
@@ -793,17 +817,17 @@ export default function StudentProfileView({ currentStudent, onProfileUpdated, i
                   onChange={handleBulkFileChange}
                 />
                 <label htmlFor="bulk-csv-file-input" className="cursor-pointer space-y-3 block">
-                  <Upload className="h-10 w-10 text-slate-400 mx-auto" />
-                  <div className="text-xs text-slate-600">
-                    <span className="font-bold underline text-indigo-600">Click to select CSV file</span> or drag-and-drop here
+                  <Upload className="h-10 w-10 text-slate-400 dark:text-slate-600 mx-auto" />
+                  <div className="text-xs text-slate-600 dark:text-slate-300">
+                    <span className="font-bold underline text-indigo-600 dark:text-indigo-400">Click to select CSV file</span> or drag-and-drop here
                   </div>
-                  <p className="text-[10px] text-slate-400 font-mono">Accepts native UTF-8 CSV / plain TXT spreadsheets</p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">Accepts native UTF-8 CSV / plain TXT spreadsheets</p>
                 </label>
               </div>
 
               {/* Text Input Box */}
               <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                   Raw CSV Spreadsheet Paste Block
                 </label>
                 <textarea
@@ -812,19 +836,19 @@ export default function StudentProfileView({ currentStudent, onProfileUpdated, i
                   placeholder={`Paste raw Microsoft Excel / Google Sheets rows here directly (comma or tab separated)...&#13;&#10;Name,Email,Gender,Mobile&#13;&#10;Abebe Kebede,abebe@un.edu,Male,+251900000001`}
                   value={bulkCSVText}
                   onChange={e => setBulkCSVText(e.target.value)}
-                  className="w-full text-xs font-mono border border-slate-200 rounded-lg p-3 bg-white text-slate-900 focus:outline-none focus:border-indigo-600"
+                  className="w-full text-xs font-mono border border-slate-200 dark:border-slate-800 rounded-lg p-3 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 dark:focus:border-indigo-405"
                 />
               </div>
 
-              <div className="border-t border-slate-100 pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-[11px] text-slate-500">
-                <span className="font-semibold text-amber-700">
+              <div className="border-t border-slate-100 dark:border-slate-805 pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-[11px] text-slate-500 dark:text-slate-400">
+                <span className="font-semibold text-amber-700 dark:text-amber-500">
                   * Bulk uploads are handled instantly and indexed in your local session cache.
                 </span>
                 <div className="flex items-center space-x-2">
                   <button
                     type="button"
                     onClick={() => setIsAddingStudent(false)}
-                    className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-md font-bold text-xs uppercase"
+                    className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-md font-bold text-xs uppercase"
                     id="btn-cancel-bulk-student"
                   >
                     Cancel
@@ -847,14 +871,14 @@ export default function StudentProfileView({ currentStudent, onProfileUpdated, i
       )}
 
       {/* Main Student Profile Form details */}
-      <div className="lg:col-span-7 bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-        <div className="flex items-center space-x-3 border-b border-slate-100 pb-4 mb-5">
-          <div className="p-2 bg-slate-100 rounded-lg text-slate-700 shrink-0">
+      <div className="lg:col-span-7 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
+        <div className="flex items-center space-x-3 border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
+          <div className="p-2 bg-slate-100 dark:bg-slate-950 rounded-lg text-slate-700 dark:text-slate-300 shrink-0 border border-slate-200 dark:border-slate-800">
             <User className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Student Profile Registry</h2>
-            <p className="text-xs text-slate-500 font-medium">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Student Profile Registry</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium font-sans">
               {isInstructor 
                 ? "Instructor Privileges: You can fully enter and update student records on their behalf" 
                 : "Manage your student registration, contacts and background credentials"}
@@ -863,18 +887,18 @@ export default function StudentProfileView({ currentStudent, onProfileUpdated, i
         </div>
 
         {/* Profile Picture Upload & Preview Component */}
-        <div className="flex flex-col sm:flex-row items-center gap-4 mb-6 p-4 bg-slate-50 rounded-xl border border-slate-200/60 shadow-inner">
-          <div className="relative w-16 h-16 rounded-full overflow-hidden bg-slate-200 border-2 border-indigo-400 shrink-0 shadow-sm">
+        <div className="flex flex-col sm:flex-row items-center gap-4 mb-6 p-4 bg-slate-50 dark:bg-slate-950/40 rounded-xl border border-slate-200/60 dark:border-slate-805/80 shadow-inner">
+          <div className="relative w-16 h-16 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-800 border-2 border-indigo-400 shrink-0 shadow-sm flex items-center justify-center">
             {profileForm.profilePicture ? (
               <img src={profileForm.profilePicture} alt={profileForm.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-indigo-100 text-indigo-700 font-black text-lg uppercase">
+              <div className="w-full h-full flex items-center justify-center bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 font-black text-lg uppercase font-sans">
                 {profileForm.name ? profileForm.name[0] : "?"}
               </div>
             )}
           </div>
           <div className="space-y-1 text-center sm:text-left">
-            <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest block">Student Profile Picture</span>
+            <span className="text-[10px] font-mono font-bold text-slate-405 dark:text-slate-400 uppercase tracking-widest block font-sans">Student Profile Picture</span>
             <input 
               id="student-avatar-file-input"
               type="file" 
@@ -885,123 +909,123 @@ export default function StudentProfileView({ currentStudent, onProfileUpdated, i
             <button 
               type="button"
               onClick={() => document.getElementById("student-avatar-file-input")?.click()}
-              className="inline-flex items-center space-x-1.5 text-[11px] bg-indigo-650 text-white hover:bg-indigo-700 font-bold font-mono py-1.5 px-3 rounded-md transition shadow-sm"
+              className="inline-flex items-center space-x-1 whitespace-nowrap bg-indigo-650 hover:bg-indigo-705 text-[11px] text-white font-bold font-sans py-1.5 px-3 rounded-md transition shadow-md cursor-pointer"
             >
-              <Camera className="h-3.5 w-3.5" />
-              <span>Upload profile picture</span>
+              <Camera className="h-3.5 w-3.5 text-white" />
+              <span className="text-white">Upload profile picture</span>
             </button>
-            <p className="text-[10px] text-slate-400 font-medium">Supports offline Base64 camera images</p>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium font-sans">Supports offline Base64 camera images</p>
           </div>
         </div>
 
         <form onSubmit={handleProfileSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Full Name</label>
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">Full Name</label>
               <input
                 id="profile-name"
                 type="text"
                 required
                 value={profileForm.name}
                 onChange={e => setProfileForm({ ...profileForm, name: e.target.value })}
-                className="w-full text-sm border border-slate-200 rounded-md px-3 py-2 bg-white text-slate-900 focus:outline-none focus:border-indigo-600 font-medium"
+                className="w-full text-sm border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 dark:focus:border-indigo-400 font-medium"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Gender</label>
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">Gender</label>
               <select
                 id="profile-gender"
                 value={profileForm.gender}
                 onChange={e => setProfileForm({ ...profileForm, gender: e.target.value as any })}
-                className="w-full text-sm border border-slate-200 rounded-md px-3 py-2 bg-white text-slate-900 focus:outline-none focus:border-indigo-600 font-medium"
+                className="w-full text-sm border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 dark:focus:border-indigo-400 font-medium"
               >
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Other">Other</option>
+                <option value="Male" className="dark:bg-slate-900 text-slate-900 dark:text-white">Male</option>
+                <option value="Female" className="dark:bg-slate-900 text-slate-900 dark:text-white">Female</option>
+                <option value="Other" className="dark:bg-slate-900 text-slate-900 dark:text-white">Other</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Email Address</label>
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">Email Address</label>
               <input
                 id="profile-email"
                 type="email"
                 required
                 value={profileForm.email}
                 onChange={e => setProfileForm({ ...profileForm, email: e.target.value })}
-                className="w-full text-sm border border-slate-200 rounded-md px-3 py-2 bg-white text-slate-900 focus:outline-none focus:border-indigo-600 font-medium"
+                className="w-full text-sm border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 dark:focus:border-indigo-400 font-medium"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Mobile Number</label>
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">Mobile Number</label>
               <input
                 id="profile-mobile"
                 type="tel"
                 value={profileForm.mobile}
                 onChange={e => setProfileForm({ ...profileForm, mobile: e.target.value })}
                 placeholder="+251..."
-                className="w-full text-sm border border-slate-200 rounded-md px-3 py-2 bg-white text-slate-900 focus:outline-none focus:border-indigo-600 font-medium"
+                className="w-full text-sm border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 dark:focus:border-indigo-400 font-medium"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Institution</label>
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">Institution</label>
               <input
                 id="profile-institution"
                 type="text"
                 value={profileForm.institution}
                 onChange={e => setProfileForm({ ...profileForm, institution: e.target.value })}
-                className="w-full text-sm border border-slate-200 rounded-md px-3 py-2 bg-white text-slate-900 focus:outline-none focus:border-indigo-600 font-medium"
+                className="w-full text-sm border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 dark:focus:border-indigo-400 font-medium"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Department</label>
+              <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">Department</label>
               <input
                 id="profile-department"
                 type="text"
                 value={profileForm.department}
                 onChange={e => setProfileForm({ ...profileForm, department: e.target.value })}
-                className="w-full text-sm border border-slate-200 rounded-md px-3 py-2 bg-white text-slate-900 focus:outline-none focus:border-indigo-600 font-medium"
+                className="w-full text-sm border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 dark:focus:border-indigo-400 font-medium"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Current Academic Rank</label>
+            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">Current Academic Rank</label>
             <input
               id="profile-position"
               type="text"
               placeholder="e.g. MSc Candidate, PhD Scholar"
               value={profileForm.currentPosition}
               onChange={e => setProfileForm({ ...profileForm, currentPosition: e.target.value })}
-              className="w-full text-sm border border-slate-200 rounded-md px-3 py-2 bg-white text-slate-900 focus:outline-none focus:border-indigo-600 font-medium"
+              className="w-full text-sm border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 dark:focus:border-indigo-400 font-medium"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Previous Accomplishments & Degrees</label>
+            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">Previous Accomplishments & Degrees</label>
             <textarea
               id="profile-degrees"
               rows={2}
               placeholder="e.g. BSc in Crime Prevention and Criminology"
               value={profileForm.previousDegrees}
               onChange={e => setProfileForm({ ...profileForm, previousDegrees: e.target.value })}
-              className="w-full text-sm border border-slate-200 rounded-md px-3 py-2 bg-white text-slate-900 focus:outline-none focus:border-indigo-600 font-medium"
+              className="w-full text-sm border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 dark:focus:border-indigo-400 font-medium"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Course Expectations</label>
+            <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">Course Expectations</label>
             <textarea
               id="profile-expectations"
               rows={3}
               placeholder="What qualitative research methodology tools or software concepts do you expectation to acquire?"
               value={profileForm.courseExpectations}
               onChange={e => setProfileForm({ ...profileForm, courseExpectations: e.target.value })}
-              className="w-full text-sm border border-slate-200 rounded-md px-3 py-2 bg-white text-slate-900 focus:outline-none focus:border-indigo-600 font-medium"
+              className="w-full text-sm border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 dark:focus:border-indigo-400 font-medium"
             />
           </div>
 
@@ -1020,20 +1044,20 @@ export default function StudentProfileView({ currentStudent, onProfileUpdated, i
 
       {/* Graduate/Independent Dissertation and Thesis Stages Tracker */}
       <div className="lg:col-span-5 space-y-6">
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 shadow-sm">
-          <div className="flex items-center space-x-3 border-b border-slate-200 pb-4 mb-5">
-            <div className="p-2 bg-slate-100 rounded-lg text-slate-705 shrink-0">
-              <GraduationCap className="h-5 w-5" />
+        <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
+          <div className="flex items-center space-x-3 border-b border-slate-200 dark:border-slate-800 pb-4 mb-5">
+            <div className="p-2 bg-slate-100 dark:bg-slate-950 rounded-lg text-slate-700 dark:text-slate-300 shrink-0 border border-slate-200 dark:border-slate-800">
+              <GraduationCap className="h-5 w-5 text-indigo-650 dark:text-indigo-400" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Thesis & Dissertation Log</h3>
-              <p className="text-xs text-slate-500 font-medium">Tracking supervision of student active researches</p>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">Thesis & Dissertation Log</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Tracking supervision of student active researches</p>
             </div>
           </div>
 
           <form onSubmit={handleResearchSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Research Topic</label>
+              <label className="block text-xs font-bold text-slate-500 dark:text-slate-405 uppercase tracking-wider mb-2">Research Topic</label>
               <input
                 id="research-topic"
                 type="text"
@@ -1041,57 +1065,57 @@ export default function StudentProfileView({ currentStudent, onProfileUpdated, i
                 placeholder="Topic or focal question of study"
                 value={researchForm.topic}
                 onChange={e => setResearchForm({ ...researchForm, topic: e.target.value })}
-                className="w-full text-sm border border-slate-200 rounded-md px-3 py-2 bg-white text-slate-900 focus:outline-none focus:border-indigo-600 font-medium"
+                className="w-full text-sm border border-slate-200 dark:border-slate-805 rounded-md px-3 py-2 bg-white dark:bg-slate-950 text-slate-905 dark:text-white focus:outline-none focus:border-indigo-600 font-medium"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Methodological Design</label>
+              <label className="block text-xs font-bold text-slate-500 dark:text-slate-405 uppercase tracking-wider mb-2">Methodological Design</label>
               <textarea
                 id="research-methodology"
                 rows={2}
                 placeholder="Methodology design (e.g. Grounded Inquiry, Inductive Narrative, CAQDAS software logic)"
                 value={researchForm.methodology}
                 onChange={e => setResearchForm({ ...researchForm, methodology: e.target.value })}
-                className="w-full text-sm border border-slate-200 rounded-md px-3 py-2 bg-white text-slate-900 focus:outline-none focus:border-indigo-600 font-medium"
+                className="w-full text-sm border border-slate-200 dark:border-slate-805 rounded-md px-3 py-2 bg-white dark:bg-slate-950 text-slate-905 dark:text-white focus:outline-none focus:border-indigo-600 font-medium"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Academic Core Interests</label>
+              <label className="block text-xs font-bold text-slate-500 dark:text-slate-405 uppercase tracking-wider mb-2">Academic Core Interests</label>
               <textarea
                 id="research-interests"
                 rows={2}
                 placeholder="Core keywords (NVivo trees, focus group data, community safety)"
                 value={researchForm.interests}
                 onChange={e => setResearchForm({ ...researchForm, interests: e.target.value })}
-                className="w-full text-sm border border-slate-200 rounded-md px-3 py-2 bg-white text-slate-900 focus:outline-none focus:border-indigo-600 font-medium"
+                className="w-full text-sm border border-slate-200 dark:border-slate-805 rounded-md px-3 py-2 bg-white dark:bg-slate-950 text-slate-905 dark:text-white focus:outline-none focus:border-indigo-600 font-medium"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Supervision Milestones Staging</label>
-              <p className="text-[10px] text-slate-400 mb-2 font-medium">Standard academic research progression</p>
+              <label className="block text-xs font-bold text-slate-500 dark:text-slate-405 uppercase tracking-wider mb-1">Supervision Milestones Staging</label>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-2 font-medium">Standard academic research progression</p>
               <select
                 id="research-stage"
                 value={researchForm.currentStage}
                 onChange={e => setResearchForm({ ...researchForm, currentStage: e.target.value })}
-                className="w-full text-sm border border-slate-200 rounded-md px-3 py-2 bg-white text-slate-900 focus:outline-none focus:border-indigo-600 font-bold"
+                className="w-full text-sm border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-600 font-bold"
               >
-                <option value="Topic submitted and approved">1. Topic submitted and approved</option>
-                <option value="Induction orientation given">2. Induction orientation given</option>
-                <option value="Concept note submission">3. Concept note submission</option>
-                <option value="Full proposal submission">4. Full proposal submission</option>
-                <option value="Data collection tools design and approval">5. Data collection tools design and approval</option>
-                <option value="Field work/ Data collection">6. Field work/ Data collection</option>
-                <option value="Data analysis ad write up">7. Data analysis & write up</option>
-                <option value="Completed & Defended">8. Completed & Defended</option>
+                <option value="Topic submitted and approved" className="dark:bg-slate-900 text-slate-900 dark:text-white">1. Topic submitted and approved</option>
+                <option value="Induction orientation given" className="dark:bg-slate-900 text-slate-900 dark:text-white">2. Induction orientation given</option>
+                <option value="Concept note submission" className="dark:bg-slate-900 text-slate-900 dark:text-white">3. Concept note submission</option>
+                <option value="Full proposal submission" className="dark:bg-slate-900 text-slate-900 dark:text-white">4. Full proposal submission</option>
+                <option value="Data collection tools design and approval" className="dark:bg-slate-900 text-slate-900 dark:text-white">5. Data collection tools design and approval</option>
+                <option value="Field work/ Data collection" className="dark:bg-slate-900 text-slate-900 dark:text-white">6. Field work/ Data collection</option>
+                <option value="Data analysis ad write up" className="dark:bg-slate-900 text-slate-900 dark:text-white">7. Data analysis & write up</option>
+                <option value="Completed & Defended" className="dark:bg-slate-900 text-slate-900 dark:text-white">8. Completed & Defended</option>
               </select>
             </div>
 
-            <div className="bg-white border border-slate-200 p-3 rounded-md shadow-xs flex justify-between items-center text-[11px]">
-              <span className="text-slate-400 font-mono font-bold uppercase">Milestone Date:</span>
-              <span className="font-semibold text-slate-700 font-mono">
+            <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-3 rounded-md shadow-xs flex justify-between items-center text-[11px]">
+              <span className="text-slate-400 dark:text-slate-500 font-mono font-bold uppercase">Milestone Date:</span>
+              <span className="font-semibold text-slate-700 dark:text-slate-300 font-mono">
                 {new Date(researchForm.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
               </span>
             </div>
@@ -1100,7 +1124,7 @@ export default function StudentProfileView({ currentStudent, onProfileUpdated, i
               <button
                 id="btn-save-research"
                 type="submit"
-                className="bg-indigo-650 hover:bg-indigo-700 text-white px-4 py-2 rounded-md font-bold text-xs uppercase tracking-wider flex items-center space-x-2 transition shadow-sm"
+                className="bg-indigo-650 hover:bg-indigo-700 text-white px-4 py-2 rounded-md font-bold text-xs uppercase tracking-wider flex items-center space-x-2 transition shadow-sm cursor-pointer"
               >
                 <RefreshCw className="h-3.5 w-3.5" />
                 <span>{isInstructor ? "Update Stage (On Behalf)" : "Update Thesis Milestone"}</span>
@@ -1108,6 +1132,59 @@ export default function StudentProfileView({ currentStudent, onProfileUpdated, i
             </div>
           </form>
         </div>
+
+        {/* Academic Supervision Progress Timeline Visualizer */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
+          <div className="flex items-center space-x-3 border-b border-slate-100 dark:border-slate-800 pb-4 mb-5">
+            <div className="p-2 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900 text-indigo-650 dark:text-indigo-400 rounded-lg shrink-0">
+              <Award className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-black uppercase text-slate-900 dark:text-white tracking-wider">Supervision Landmarks Roadmap</h3>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Interactive timeline visualization of thesis staging</p>
+            </div>
+          </div>
+
+          <div className="relative pl-6 border-l border-slate-200 dark:border-slate-800 space-y-6">
+            {STAGES.map((stg, sIndex) => {
+              const activeIndex = getStageIndex(researchForm.currentStage);
+              const isPassed = sIndex < activeIndex;
+              const isActive = sIndex === activeIndex;
+
+              return (
+                <div key={sIndex} className="relative group text-left">
+                  {/* Stepper Node Pointer */}
+                  <div className={`absolute -left-[32px] top-0.5 w-4.5 h-4.5 rounded-full flex items-center justify-center border-2 text-[9px] font-bold transition-all duration-300 ${
+                    isPassed ? "bg-emerald-500 border-emerald-500 text-white shadow-xs" :
+                    isActive ? "bg-indigo-600 border-indigo-600 text-white animate-pulse shadow-md scale-105" :
+                    "bg-slate-100 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-600"
+                  }`}>
+                    {isPassed ? "✓" : sIndex + 1}
+                  </div>
+
+                  {/* Text Description */}
+                  <div className="pl-1.5 flex flex-col font-sans">
+                    <span className={`text-[11px] font-extrabold uppercase tracking-wider leading-none mb-1 transition-colors ${
+                      isActive ? "text-indigo-650 dark:text-indigo-400" :
+                      isPassed ? "text-slate-800 dark:text-slate-200" :
+                      "text-slate-400 dark:text-slate-550"
+                    }`}>
+                      {stg.label}
+                    </span>
+                    <span className={`text-[10px] leading-relaxed transition-colors ${
+                      isActive ? "text-slate-700 dark:text-slate-300 font-bold" :
+                      isPassed ? "text-slate-500 dark:text-slate-400 font-medium" :
+                      "text-slate-400/80 dark:text-slate-600/80"
+                    }`}>
+                      {stg.desc}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
       </div>
 
     </div>

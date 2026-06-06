@@ -11,6 +11,8 @@ import {
   Sparkles, CheckCircle, Smartphone, AlertTriangle,
   ShieldCheck, ShieldAlert
 } from "lucide-react";
+import { signInWithPopup, GoogleAuthProvider, signInAnonymously } from "firebase/auth";
+import { auth, isPlaceholderFirebase } from "../lib/firebase";
 
 interface LoginViewProps {
   onLoginSuccess: (session: {
@@ -59,13 +61,107 @@ export default function LoginView({
   const [regPosition, setRegPosition] = useState("MSc Candidate");
   const [regExpectations, setRegExpectations] = useState("");
 
+  // Proactively sign in anonymously in the background so that simulated actions and 
+  // self-registered student profiles have a valid Firebase UID in the sync outbox
+  React.useEffect(() => {
+    if (!isPlaceholderFirebase && typeof window !== "undefined") {
+      // Small timeout to not block main thread startup rendering
+      const t = setTimeout(() => {
+        if (!auth.currentUser) {
+          signInAnonymously(auth).then((cred) => {
+            console.log("Background anonymous auth session initialized successfully:", cred.user.uid);
+          }).catch(err => {
+            console.warn("Background anonymous sign-in failed or is current offline:", err);
+          });
+        }
+      }, 300);
+      return () => clearTimeout(t);
+    }
+  }, []);
+
+  const handleGoogleLogin = () => {
+    setErrorMsg(null);
+    const provider = new GoogleAuthProvider();
+    signInWithPopup(auth, provider)
+      .then(async (result) => {
+        const user = result.user;
+        const email = user.email || "";
+        const name = user.displayName || "Authorized User";
+        
+        // 1. Check if Instructor (authorized in rules and verified)
+        const cleanEmail = email.toLowerCase();
+        if (cleanEmail === "zerihunfakana@gmail.com" || cleanEmail === "zerihun.doda@epsu.edu.et") {
+          const session = {
+            role: "instructor" as const,
+            email: cleanEmail,
+            name: "Dr. Zerihun Doda"
+          };
+          localStorage.setItem("cc_user_session", JSON.stringify(session));
+          onLoginSuccess(session);
+          return;
+        }
+        
+        // 2. Otherwise log in or register as a Student!
+        try {
+          // Direct fetch from Firestore using studentId (user.uid) to bypass general listing permissions
+          const { doc, getDoc } = await import("firebase/firestore");
+          const { db } = await import("../lib/firebase");
+          
+          const docRef = doc(db, "students", user.uid);
+          const docSnap = await getDoc(docRef);
+          
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            const session = {
+              role: "student" as const,
+              email: data.email,
+              studentId: user.uid,
+              name: data.name
+            };
+            localStorage.setItem("cc_user_session", JSON.stringify(session));
+            onLoginSuccess(session);
+          } else {
+            // Profile does not exist yet. Autofill and request registration.
+            setRegEmail(email);
+            setRegName(name);
+            setIsRegistering(true);
+            setErrorMsg("Logged in with Google! Since there is no student profile registered under your Google ID yet, please fill in your details below to activate registration.");
+          }
+        } catch (e) {
+          console.error("Failed to query direct student ID from Firestore:", e);
+          // Fallback searching in local cache memory for safety
+          const studentsList = dbService.getStudents();
+          const localMatch = studentsList.find(s => s.email.toLowerCase() === cleanEmail);
+          
+          if (localMatch) {
+            const session = {
+              role: "student" as const,
+              email: localMatch.email,
+              studentId: localMatch.id,
+              name: localMatch.name
+            };
+            localStorage.setItem("cc_user_session", JSON.stringify(session));
+            onLoginSuccess(session);
+          } else {
+            setRegEmail(email);
+            setRegName(name);
+            setIsRegistering(true);
+          }
+        }
+      })
+      .catch((err) => {
+        console.error("Google login failed:", err);
+        setErrorMsg("Google Authentication was unsuccessful. Ensure you have internet connection or use standard credentials bypassing.");
+      });
+  };
+
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
 
     const cleanEmail = email.trim().toLowerCase();
 
-    // 1. Instructor Login Validation
+    // 1. Instructor Login Validation (Passcode simulated bypass)
     if (activePortal === "instructor") {
       if (
         cleanEmail === "zerihun.doda@epsu.edu.et" || 
@@ -79,7 +175,15 @@ export default function LoginView({
             name: "Dr. Zerihun Doda"
           };
           localStorage.setItem("cc_user_session", JSON.stringify(session));
-          onLoginSuccess(session);
+          
+          // Sign in anonymously in background if offline/passcode bypass
+          if (!isPlaceholderFirebase && !auth.currentUser) {
+            signInAnonymously(auth)
+              .then(() => onLoginSuccess(session))
+              .catch(() => onLoginSuccess(session));
+          } else {
+            onLoginSuccess(session);
+          }
           return;
         } else {
           setErrorMsg("Incorrect passcode. Try '1234' for testing.");
@@ -104,7 +208,15 @@ export default function LoginView({
           name: student.name
         };
         localStorage.setItem("cc_user_session", JSON.stringify(session));
-        onLoginSuccess(session);
+        
+        // Sign in anonymously in background if offline/passcode bypass
+        if (!isPlaceholderFirebase && !auth.currentUser) {
+          signInAnonymously(auth)
+            .then(() => onLoginSuccess(session))
+            .catch(() => onLoginSuccess(session));
+        } else {
+          onLoginSuccess(session);
+        }
       } else {
         setErrorMsg("Please enter '1234' or leave it empty for instant demonstration logging.");
       }
@@ -113,7 +225,7 @@ export default function LoginView({
     }
   };
 
-  const handleRegistrationSubmit = (e: React.FormEvent) => {
+  const handleRegistrationSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
 
@@ -126,10 +238,23 @@ export default function LoginView({
       return;
     }
 
-    // Generate clean ID
-    const newStudentId = `stud_${Date.now()}`;
+    // Determine unique stable ID - prefer real active auth UID for cloud mapping
+    let resolvedId = `stud_${Date.now()}`;
+    if (!isPlaceholderFirebase) {
+      if (auth.currentUser) {
+        resolvedId = auth.currentUser.uid;
+      } else {
+        try {
+          const cred = await signInAnonymously(auth);
+          resolvedId = cred.user.uid;
+        } catch (err) {
+          console.warn("Could not retrieve unique auth UID for student, using timestamp fallback:", err);
+        }
+      }
+    }
+
     const newStudent: Student = {
-      id: newStudentId,
+      id: resolvedId,
       name: regName,
       gender: regGender,
       email: cleanRegEmail,
@@ -440,10 +565,31 @@ export default function LoginView({
               <button
                 id="btn-submit-login"
                 type="submit"
-                className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-extrabold text-xs uppercase tracking-wider py-2.5 rounded-lg transition-all shadow-md mt-2 flex items-center justify-center space-x-1"
+                className="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-extrabold text-xs uppercase tracking-wider py-2.5 rounded-lg transition-all shadow-md mt-2 flex items-center justify-center space-x-1 animate-pulse-subtle"
               >
                 <LogIn className="h-4 w-4" />
                 <span>Sign in to system</span>
+              </button>
+
+              <div className="relative flex py-2 items-center">
+                <div className="flex-grow border-t border-slate-800"></div>
+                <span className="flex-shrink mx-3 text-[9px] text-slate-500 font-mono uppercase tracking-wider font-semibold">Or Secure Cloud Sync</span>
+                <div className="flex-grow border-t border-slate-800"></div>
+              </div>
+
+              <button
+                id="btn-google-login"
+                type="button"
+                onClick={handleGoogleLogin}
+                className="w-full bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-200 font-extrabold text-xs uppercase tracking-wider py-2.5 rounded-lg transition-all shadow-md flex items-center justify-center space-x-2 cursor-pointer font-sans"
+              >
+                <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24">
+                  <path fill="#EA4335" d="M12 5.04c1.67 0 3.17.57 4.35 1.7l3.25-3.25C17.65 1.62 14.98 1 12 1 7.35 1 3.39 3.65 1.5 7.5l3.96 3.07C6.38 7.37 9.01 5.04 12 5.04z" />
+                  <path fill="#4285F4" d="M23.49 12.27c0-.81-.07-1.59-.2-2.34H12v4.44h6.44c-.28 1.47-1.11 2.71-2.36 3.55l3.66 2.84c2.14-1.97 3.39-4.88 3.39-8.49z" />
+                  <path fill="#FBBC05" d="M5.46 10.57c-.24-.72-.38-1.5-.38-2.3s.14-1.58.38-2.3L1.5 2.9C.54 4.8 0 6.95 0 9.2c0 2.25.54 4.4 1.5 6.3l3.96-3.07v-.86z" />
+                  <path fill="#34A853" d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.66-2.84c-1.01.68-2.31 1.09-3.96 1.09-2.99 0-5.62-2.33-6.54-5.53L1.5 15.88C3.39 19.73 7.35 23 12 23z" />
+                </svg>
+                <span>Sign in with Google</span>
               </button>
 
               {isShareSafeActive ? (

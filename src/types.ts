@@ -132,3 +132,28 @@ export interface WorkspaceNote {
   updatedAt: string;
 }
 
+export interface FeedbackTemplate {
+  id: string;
+  title: string;
+  description: string;
+  questions: Question[];
+  createdAt: string;
+  isCustom?: boolean;
+}
+
+export interface AnonymousFeedback {
+  id: string;
+  templateId: string;
+  answers: Record<string, string | number>;
+  submittedAt: string;
+}
+
+export interface AutomatedBackup {
+  id: string;
+  timestamp: string;
+  triggerEvent: string; // e.g., "feedback_submission", "template_creation", "manual"
+  dataSize: number; // size in characters
+  recordCounts: Record<string, number>;
+  jsonData: string; // complete backup JSON representation
+}
+
