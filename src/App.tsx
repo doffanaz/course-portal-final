@@ -60,6 +60,9 @@ export default function App() {
   const [online, setOnline] = useState(dbService.isOnline());
   const [outboxCount, setOutboxCount] = useState(dbService.getOutboxCount());
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isLocalStandalone, setIsLocalStandalone] = useState<boolean>(() => {
+    return localStorage.getItem("cc_local_standalone") === "true";
+  });
 
   // PWA Prompting and Install States
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -380,9 +383,6 @@ export default function App() {
             <p>
               Browser security rules disable automatic app installation lists inside nested preview frames. For desktop or smartphone native installation, launch <span className="text-[#a7f3d0] font-extrabold">DodaZ- Course Companion Portal</span> directly in a standard, clean external tab!
             </p>
-            <p className="text-[10px] text-teal-200/85 mt-1 font-normal leading-normal">
-              💡 <span className="underline font-bold text-white">Advisory Alert</span>: If Google prompts a 403 Forbidden or 404 page in your browser tab, make sure your browser is logged into your developer account <strong className="text-white">zerihunfakana@gmail.com</strong>, or simply click the top-right <strong className="text-white">"Share" button</strong> in Google AI Studio to deploy a public open-access link!
-            </p>
           </div>
         </div>
         <div className="flex items-center gap-1.5 shrink-0 self-stretch sm:self-auto justify-center">
@@ -480,7 +480,12 @@ export default function App() {
           </div>
 
           <div className="flex items-center space-x-2 text-xs font-mono">
-            {online ? (
+            {isLocalStandalone ? (
+              <span className="flex items-center space-x-1.5 text-teal-800 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 px-2.5 py-1 rounded-md border border-teal-200 dark:border-teal-900 font-bold">
+                <HardDrive className="h-3.5 w-3.5 text-teal-650 dark:text-teal-400" />
+                <span>LOCAL STANDALONE</span>
+              </span>
+            ) : online ? (
               <span className="flex items-center space-x-1.5 text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 font-bold">
                 <Wifi className="h-3.5 w-3.5 animate-pulse text-emerald-650" />
                 <span>ONLINE CLOUD</span>
@@ -492,7 +497,7 @@ export default function App() {
               </span>
             )}
 
-            {outboxCount > 0 && (
+            {outboxCount > 0 && !isLocalStandalone && (
               <button
                 id="btn-sync-outbox"
                 onClick={handleManualSync}
@@ -637,9 +642,9 @@ export default function App() {
               title="Open Offline Sync Hub"
             >
               <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${online ? "bg-emerald-500" : "bg-rose-500"} ${online && "animate-pulse"}`}></div>
+                <div className={`w-2 h-2 rounded-full ${isLocalStandalone ? "bg-teal-400" : online ? "bg-emerald-500 animate-pulse" : "bg-rose-500"}`}></div>
                 <span className="text-[10px] font-bold font-mono">
-                  {online ? "SYNCED CLOUD" : "OFFLINE BUFFERED"}
+                  {isLocalStandalone ? "LOCAL STANDALONE" : online ? "SYNCED CLOUD" : "OFFLINE BUFFERED"}
                 </span>
               </div>
               <span className="text-[8px] bg-slate-800 text-slate-400 font-mono px-1 py-0.5 rounded border border-slate-700">Hub ↗</span>
@@ -1042,6 +1047,78 @@ export default function App() {
             {/* Scrollable Content */}
             <div className="overflow-y-auto pr-1 flex-1 space-y-4 font-sans text-xs">
               
+              {/* Standalone Settings Card */}
+              <div className="p-4 bg-teal-50/45 dark:bg-slate-950 border border-teal-200/50 dark:border-teal-950 rounded-xl space-y-3 shadow-3xs">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <span className="text-[9px] font-bold text-teal-700 dark:text-teal-400 uppercase tracking-widest block font-mono">Independent Standalone Configuration</span>
+                    <h4 className="text-[11px] font-black uppercase text-slate-900 dark:text-white tracking-wide">Run completely offline & independent?</h4>
+                    <p className="text-[11px] text-slate-550 dark:text-slate-400 leading-normal font-sans font-medium">
+                      Enabling **Local Standalone Mode** runs the classroom app exclusively using your browser's local sandbox storage (`localStorage`). This pauses automatic background cloud upload requests to your Firebase Firestore cloud database for completely private independent operation.
+                    </p>
+                  </div>
+                  <div className="flex items-center shrink-0 mt-2.5">
+                    <label className="relative inline-flex items-center cursor-pointer select-none">
+                      <input 
+                        type="checkbox" 
+                        checked={isLocalStandalone} 
+                        onChange={(e) => {
+                          const val = e.target.checked;
+                          setIsLocalStandalone(val);
+                          localStorage.setItem("cc_local_standalone", String(val));
+                          
+                          const nowTime = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                          if (val) {
+                            setSyncLogs(prev => [...prev, { 
+                              time: nowTime, 
+                              msg: "Standalone Local-Only Mode active. Automatic database sync queues are paused.", 
+                              type: 'success' 
+                            }]);
+                          } else {
+                            setSyncLogs(prev => [...prev, { 
+                              time: nowTime, 
+                              msg: "Cloud synchronizations re-enabled. Querying connections...", 
+                              type: 'info' 
+                            }]);
+                            dbService.syncOutbox();
+                            dbService.pullAllDataFromServer();
+                          }
+                        }}
+                        className="sr-only peer" 
+                        id="toggle-standalone-checkbox"
+                      />
+                      <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full dark:bg-slate-800 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-700 peer-checked:bg-teal-600"></div>
+                    </label>
+                  </div>
+                </div>
+
+                {isLocalStandalone && (
+                  <div className="bg-white/60 dark:bg-slate-900/60 border border-teal-150 dark:border-teal-900/50 p-2.5 rounded-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 text-[10.5px] animate-fade-in leading-relaxed">
+                    <div className="text-slate-550 dark:text-slate-400 font-sans font-medium">
+                      Your classroom changes ({outboxCount} items buffered) are fully saved locally. Switch this off to enable cloud backends. You can clear the backlog of changes to reset the indicator.
+                    </div>
+                    {outboxCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          dbService.clearOutbox();
+                          setOutboxCount(0);
+                          const nowTime = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                          setSyncLogs(prev => [...prev, { 
+                            time: nowTime, 
+                            msg: "Successfully cleared outbox ledger mutations. Standalone database clean.", 
+                            type: 'success' 
+                          }]);
+                        }}
+                        className="px-2 py-1 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-900/40 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900 rounded font-black uppercase text-[8.5px] tracking-wider transition shrink-0"
+                      >
+                        Clear Sync Queue
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {/* Connection metrics Row */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 
@@ -1196,7 +1273,8 @@ export default function App() {
             <div className="flex justify-between items-center pt-4 border-t border-slate-150 dark:border-slate-800 mt-5 shrink-0">
               <button
                 type="button"
-                disabled={isSyncingCore || !online}
+                disabled={isSyncingCore || !online || isLocalStandalone}
+                title={isLocalStandalone ? "Disable local standalone mode to connect with backing cloud databases" : ""}
                 onClick={triggerCoreSyncEngine}
                 className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-45 rounded-lg text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer shadow-sm flex items-center justify-center gap-1.5"
               >

@@ -44,8 +44,11 @@ export class DBManager {
       auth.onAuthStateChanged((user) => {
         if (user) {
           console.log("Firebase Auth State Change: Authenticated as Uid", user.uid);
-          this.syncOutbox();
-          this.pullAllDataFromServer();
+          const isLocalStandalone = localStorage.getItem("cc_local_standalone") === "true";
+          if (!isLocalStandalone) {
+            this.syncOutbox();
+            this.pullAllDataFromServer();
+          }
         } else {
           console.log("Firebase Auth State Change: Not authenticated");
         }
@@ -200,7 +203,8 @@ export class DBManager {
   private handleNetworkChange(online: boolean) {
     this.isConnected = online;
     this.triggerStatusChange();
-    if (online) {
+    const isLocalStandalone = typeof window !== "undefined" && localStorage.getItem("cc_local_standalone") === "true";
+    if (online && !isLocalStandalone) {
       this.syncOutbox();
     }
   }
@@ -234,13 +238,15 @@ export class DBManager {
     this.saveOutbox();
     this.triggerStatusChange();
     
-    if (this.isOnline() && !isPlaceholderFirebase) {
+    const isLocalStandalone = typeof window !== "undefined" && localStorage.getItem("cc_local_standalone") === "true";
+    if (this.isOnline() && !isPlaceholderFirebase && !isLocalStandalone) {
       this.syncOutbox();
     }
   }
 
   public async syncOutbox() {
-    if (isPlaceholderFirebase || !this.isOnline() || this.outbox.length === 0) return;
+    const isLocalStandalone = typeof window !== "undefined" && localStorage.getItem("cc_local_standalone") === "true";
+    if (isPlaceholderFirebase || !this.isOnline() || this.outbox.length === 0 || isLocalStandalone) return;
     
     const currentOps = [...this.outbox];
     this.outbox = [];
@@ -282,7 +288,8 @@ export class DBManager {
 
   // Synchronizes Firestore down to local cache if connected and verified
   public async pullAllDataFromServer() {
-    if (isPlaceholderFirebase || !this.isOnline()) return;
+    const isLocalStandalone = typeof window !== "undefined" && localStorage.getItem("cc_local_standalone") === "true";
+    if (isPlaceholderFirebase || !this.isOnline() || isLocalStandalone) return;
     
     const collections = ["students", "attendance", "assignments", "submissions", "materials", "messages", "surveys", "survey_responses", "reflections", "research_profiles"];
     
@@ -609,6 +616,12 @@ export class DBManager {
       console.error("Backup import failed:", e);
       return false;
     }
+  }
+
+  public clearOutbox() {
+    this.outbox = [];
+    this.saveOutbox();
+    this.triggerStatusChange();
   }
 
   public clearAllDataAndReset() {
